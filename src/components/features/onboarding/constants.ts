@@ -1,0 +1,5 @@
+export const MEMBERS_CSV_TEMPLATE = `title,fullName,gender,birthday,maritalStatus,dateOfMarriage,phoneNumber,email,occupation,educationalBackground,membershipStatus,dateJoined,previousChurchMembership,isBaptized,ministries,volunteerPreferences,cellGroupName
+MR.,John Mensah,MALE,1985-03-15,MARRIED,2010-07-20,+233-24-123-4567,john.mensah@email.com,Teacher,Masters in Education,MEMBER,2020-01-15,St. Peter's Church,true,Worship Team,Music Ministry,Christ Embassy
+MRS.,Sarah Adjei,FEMALE,1990-08-22,SINGLE,,,+233-20-234-5678,sarah.adjei@email.com,Nurse,Bachelors in Nursing,VOLUNTEER,2019-11-10,Healing Streams Church,true,Children's Ministry,Teaching,Victory Chapel
+MR.,Michael Osei,MALE,1978-12-05,MARRIED,2005-05-18,+233-26-345-6789,michael.osei@email.com,Accountant,MBA,LEADER,2018-03-20,Redeemed Church,true,Finance Committee,Accounting,Faith Fellowship
+MRS.,Esther Boateng,FEMALE,1995-04-30,SINGLE,,,+233-50-456-7890,esther.boateng@email.com,Software Developer,BSc Computer Science,VISITOR,2023-08-05,,false,Ushering,Technology,Grace Assembly`;
