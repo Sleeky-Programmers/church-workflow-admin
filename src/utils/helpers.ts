@@ -1,3 +1,5 @@
+import { PlanType } from "@/lib/enums";
+
 export function formatDate(isoDate?: string): string {
   if (!isoDate) return "-";
   const date = new Date(isoDate);
@@ -7,4 +9,34 @@ export function formatDate(isoDate?: string): string {
   const year = date.getFullYear();
 
   return `${day}/${month}/${year}`;
+}
+
+export function normalizePlan(plan?: string) {
+  if (!plan) return "Starter";
+
+  switch (plan.toUpperCase()) {
+    case "ENTERPRISE":
+      return "Enterprise";
+    case "GROWTH":
+      return "Growth";
+    case "STARTER":
+      return "Starter";
+    default:
+      return "Starter";
+  }
+}
+
+export function normalizeStatus(status?: string) {
+  if (!status) return "active";
+
+  switch (status.toUpperCase()) {
+    case "ACTIVE":
+      return "active";
+    case "EXPIRING_SOON":
+      return "expiring";
+    case "OVERDUE":
+      return "overdue";
+    default:
+      return "active";
+  }
 }

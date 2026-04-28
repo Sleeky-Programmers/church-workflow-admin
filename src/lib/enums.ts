@@ -18,9 +18,34 @@ export enum NotificationType {
   FINANCE = "FINANCE",
 }
 
+export enum CouponFilter {
+  ALL = "all",
+  ACTIVE = "active",
+  INACTIVE = "inactive",
+  EXPIRED = "expired",
+}
+
+export enum CouponDiscount {
+  PERCENTAGE = "PERCENTAGE",
+  FLAT = "FLAT",
+}
+
 export enum AdminOption {
   SUSPEND = "SUSPEND",
   RESTORE = "RESTORE",
+}
+
+export enum PlanType {
+  STARTER = "STARTER",
+  GROWTH = "GROWTH",
+  EXPANSION = "EXPANSION",
+  ENTERPRISE = "ENTERPRISE",
+}
+
+export enum ChurchSubscriptionStatus {
+  ACTIVE = "Active",
+  OVERDUE = "Overdue",
+  EXPIRING_SOON = "Expiring soon",
 }
 
 export enum ActivityDetailLabel {
