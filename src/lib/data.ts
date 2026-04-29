@@ -333,9 +333,9 @@ export const AdminSidebarData = {
 			icon: Building2,
 		},
 		{
-			title: 'Plan Management',
-			url: '/dashboard/plans',
-			icon: CreditCard,
+			title: 'User Management',
+			url: '/dashboard/users',
+			icon: Users,
 		},
 		{
 			title: 'Payments',
