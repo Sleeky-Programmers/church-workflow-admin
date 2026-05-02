@@ -1,6 +1,6 @@
 import { authenticatedFetch } from "@/lib/api";
 import { CouponData, couponPayload, GetCouponStat } from "@/types";
-
+import { CouponDiscount } from "@/lib/enums";
 export interface GetAllCouponResponse {
   data: CouponData[];
   pagination: {
@@ -22,7 +22,7 @@ interface GetAllCouponParams {
 
 export interface Coupon {
   code: string;
-  discountType: "PERCENTAGE" | "FIXED";
+  discountType: CouponDiscount.PERCENTAGE | CouponDiscount.FLAT;
   discount: number;
 }
 

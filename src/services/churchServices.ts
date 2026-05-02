@@ -1,6 +1,6 @@
 import { authenticatedFetch } from "@/lib/api";
 import { ChurchStatus } from "@/lib/enums";
-
+import { ChurchSubscriptionStatus } from "@/lib/enums";
 export interface ChurchListItem {
   id: string;
   name: string;
@@ -14,7 +14,11 @@ export interface ChurchListItem {
 
   totalUsers: number;
   plan: string;
-  subscriptionStatus: "ACTIVE" | "EXPIRING_SOON" | "OVERDUE" | string;
+  subscriptionStatus:
+    | ChurchSubscriptionStatus.ACTIVE
+    | ChurchSubscriptionStatus.EXPIRING_SOON
+    | ChurchSubscriptionStatus.OVERDUE
+    | string;
   status: ChurchStatus;
 }
 

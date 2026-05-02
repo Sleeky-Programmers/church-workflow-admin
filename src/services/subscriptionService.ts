@@ -1,5 +1,5 @@
 import { authenticatedFetch } from "@/lib/api";
-
+import { BillingCycle } from "@/lib/enums";
 export interface Plan {
   type: string;
   name: string;
@@ -13,7 +13,7 @@ export interface BillingOverview {
   plans: Plan[];
   currentPlan: string;
   subscriptionStatus: string;
-  billingCycle: "MONTHLY" | "YEARLY";
+  billingCycle: BillingCycle.MONTHLY | BillingCycle.YEARLY;
 }
 
 export async function getBillingOverview(): Promise<BillingOverview> {
@@ -25,7 +25,7 @@ export async function getBillingOverview(): Promise<BillingOverview> {
 export async function updateSubscription(payload: {
   churchId: string;
   plan: string;
-  billingCycle: "MONTHLY" | "YEARLY";
+  billingCycle: BillingCycle.MONTHLY | BillingCycle.YEARLY;
   couponCode?: string;
 }) {
   return authenticatedFetch("/subscription/update", {
