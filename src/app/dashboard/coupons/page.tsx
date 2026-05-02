@@ -312,160 +312,153 @@ export default function CouponsPage() {
 
   return (
     <>
-      {isLoading ? (
-        <div>
-          <Loader />
+      <div>
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+          <div>
+            <Heading level={1} text="Coupon Management" />
+            <Text
+              text="Create and manage discount coupons for churches"
+              variant="muted"
+            />
+          </div>
+          <Button onClick={() => setIsCreateModalOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Create Coupon
+          </Button>
         </div>
-      ) : (
-        <div>
-          {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-            <div>
-              <Heading level={1} text="Coupon Management" />
-              <Text
-                text="Create and manage discount coupons for churches"
-                variant="muted"
-              />
-            </div>
-            <Button
-              onClick={() => setIsCreateModalOpen(true)}
-              className="gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              Create Coupon
-            </Button>
-          </div>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
-            <Card className="rounded-2xl">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Text
-                      text="Active Coupons"
-                      variant="muted"
-                      className="text-sm"
-                    />
-                    <Heading
-                      level={2}
-                      text={couponStats?.activeCoupons}
-                      className="text-2xl font-semibold mt-1"
-                    />
-                  </div>
-                  <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-                    <Gift className="w-5 h-5 text-green-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-2xl">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Text
-                      text="Total Usage"
-                      variant="muted"
-                      className="text-sm"
-                    />
-                    <Heading
-                      level={2}
-                      text={couponStats?.totalUsage}
-                      className="text-2xl font-semibold mt-1"
-                    />
-                  </div>
-                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                    <Users className="w-5 h-5 text-blue-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-2xl">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Text
-                      text="Expiring Soon"
-                      variant="muted"
-                      className="text-sm"
-                    />
-                    <Heading
-                      level={2}
-                      text={couponStats?.expiringSoon}
-                      className="text-2xl font-semibold mt-1"
-                    />
-                  </div>
-                  <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
-                    <Calendar className="w-5 h-5 text-amber-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="rounded-2xl">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Text
-                      text="Total Coupons"
-                      variant="muted"
-                      className="text-sm"
-                    />
-                    <Heading
-                      level={2}
-                      text={couponStats?.totalCoupons}
-                      className="text-2xl font-semibold mt-1"
-                    />
-                  </div>
-                  <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
-                    <Tag className="w-5 h-5 text-purple-600" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Filters */}
-          <Card className="rounded-2xl mb-6">
-            <CardContent className="p-4">
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <Input
-                    placeholder="Search by coupon code or description..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9"
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
+          <Card className="rounded-2xl">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Text
+                    text="Active Coupons"
+                    variant="muted"
+                    className="text-sm"
+                  />
+                  <Heading
+                    level={2}
+                    text={couponStats?.activeCoupons}
+                    className="text-2xl font-semibold mt-1"
                   />
                 </div>
-
-                <Select
-                  value={statusFilter}
-                  onValueChange={(value) =>
-                    setStatusFilter(value as CouponFilter)
-                  }
-                >
-                  <SelectTrigger className="w-[160px]">
-                    <SelectValue placeholder="All Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={CouponFilter.ALL}>All Status</SelectItem>
-                    <SelectItem value={CouponFilter.ACTIVE}>Active</SelectItem>
-                    <SelectItem value={CouponFilter.INACTIVE}>
-                      Inactive
-                    </SelectItem>
-                    <SelectItem value={CouponFilter.EXPIRED}>
-                      Expired
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+                  <Gift className="w-5 h-5 text-green-600" />
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Coupons Grid */}
+          <Card className="rounded-2xl">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Text
+                    text="Total Usage"
+                    variant="muted"
+                    className="text-sm"
+                  />
+                  <Heading
+                    level={2}
+                    text={couponStats?.totalUsage}
+                    className="text-2xl font-semibold mt-1"
+                  />
+                </div>
+                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                  <Users className="w-5 h-5 text-blue-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-2xl">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Text
+                    text="Expiring Soon"
+                    variant="muted"
+                    className="text-sm"
+                  />
+                  <Heading
+                    level={2}
+                    text={couponStats?.expiringSoon}
+                    className="text-2xl font-semibold mt-1"
+                  />
+                </div>
+                <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+                  <Calendar className="w-5 h-5 text-amber-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-2xl">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Text
+                    text="Total Coupons"
+                    variant="muted"
+                    className="text-sm"
+                  />
+                  <Heading
+                    level={2}
+                    text={couponStats?.totalCoupons}
+                    className="text-2xl font-semibold mt-1"
+                  />
+                </div>
+                <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
+                  <Tag className="w-5 h-5 text-purple-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Filters */}
+        <Card className="rounded-2xl mb-6">
+          <CardContent className="p-4">
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search by coupon code or description..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+
+              <Select
+                value={statusFilter}
+                onValueChange={(value) =>
+                  setStatusFilter(value as CouponFilter)
+                }
+              >
+                <SelectTrigger className="w-[160px]">
+                  <SelectValue placeholder="All Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={CouponFilter.ALL}>All Status</SelectItem>
+                  <SelectItem value={CouponFilter.ACTIVE}>Active</SelectItem>
+                  <SelectItem value={CouponFilter.INACTIVE}>
+                    Inactive
+                  </SelectItem>
+                  <SelectItem value={CouponFilter.EXPIRED}>Expired</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+        {isLoading ? (
+          <div>
+            <Loader />
+          </div>
+        ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
             {filteredCoupons.map((coupon) => {
               const TypeIcon =
@@ -615,8 +608,7 @@ export default function CouponsPage() {
                 </Card>
               );
             })}
-          </div>
-          <div className="flex items-center  mt-6">
+            {/* <div className="flex items-center  mt-6">
             <Button
               variant="outline"
               disabled={!pagination?.hasPreviousPage}
@@ -636,160 +628,163 @@ export default function CouponsPage() {
             >
               Next
             </Button>
-          </div>
-          {filteredCoupons.length === 0 && (
-            <Card className="rounded-2xl">
-              <CardContent className="text-center py-12">
-                <Gift className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                <Text text="No coupons found" className="text-gray-500" />
-                <Text
-                  text="Create your first coupon to start offering discounts"
-                  variant="muted"
-                  className="text-sm"
-                />
-                <Button
-                  onClick={() => setIsCreateModalOpen(true)}
-                  className="mt-4 gap-2"
-                >
-                  <Plus className="h-4 w-4" />
-                  Create Coupon
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Create/Edit Coupon Modal */}
-          <Dialog
-            open={isCreateModalOpen || isEditModalOpen}
-            onOpenChange={(open) => {
-              if (!open) {
-                setIsCreateModalOpen(false);
-                setIsEditModalOpen(false);
-                setSelectedCoupon(null);
-                formik.resetForm();
-              }
-            }}
-          >
-            <DialogContent className="sm:max-w-[550px] max-h-[85vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>
-                  {isCreateModalOpen ? "Create New Coupon" : "Edit Coupon"}
-                </DialogTitle>
-                <DialogDescription>
-                  {isCreateModalOpen
-                    ? "Create a discount coupon for churches to use"
-                    : "Modify the coupon details below"}
-                </DialogDescription>
-              </DialogHeader>
-
-              <form onSubmit={formik.handleSubmit} className="space-y-4 py-4">
-                {/* Coupon Code */}
-                <div>
-                  <Label htmlFor="code">Coupon Code *</Label>
-                  <Input
-                    name="code"
-                    value={formik.values.code}
-                    onChange={formik.handleChange}
-                    onBlur={formik.handleBlur}
-                  />
-
-                  {formik.touched.code && formik.errors.code && (
-                    <p className="text-red-500 text-xs">{formik.errors.code}</p>
-                  )}
+          </div> */}
+            {filteredCoupons.length === 0 && (
+              <Card className="rounded-2xl">
+                <CardContent className="text-center py-12">
+                  <Gift className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                  <Text text="No coupons found" className="text-gray-500" />
                   <Text
-                    text="Only letters, numbers, and underscores"
+                    text="Create your first coupon to start offering discounts"
                     variant="muted"
-                    className="text-xs mt-1"
+                    className="text-sm"
                   />
-                </div>
+                  <Button
+                    onClick={() => setIsCreateModalOpen(true)}
+                    className="mt-4 gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Create Coupon
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
+        {/* Coupons Grid */}
 
-                {/* Description */}
+        {/* Create/Edit Coupon Modal */}
+        <Dialog
+          open={isCreateModalOpen || isEditModalOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              setIsCreateModalOpen(false);
+              setIsEditModalOpen(false);
+              setSelectedCoupon(null);
+              formik.resetForm();
+            }
+          }}
+        >
+          <DialogContent className="sm:max-w-[550px] max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                {isCreateModalOpen ? "Create New Coupon" : "Edit Coupon"}
+              </DialogTitle>
+              <DialogDescription>
+                {isCreateModalOpen
+                  ? "Create a discount coupon for churches to use"
+                  : "Modify the coupon details below"}
+              </DialogDescription>
+            </DialogHeader>
+
+            <form onSubmit={formik.handleSubmit} className="space-y-4 py-4">
+              {/* Coupon Code */}
+              <div>
+                <Label htmlFor="code">Coupon Code *</Label>
+                <Input
+                  name="code"
+                  value={formik.values.code}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                />
+
+                {formik.touched.code && formik.errors.code && (
+                  <p className="text-red-500 text-xs">{formik.errors.code}</p>
+                )}
+                <Text
+                  text="Only letters, numbers, and underscores"
+                  variant="muted"
+                  className="text-xs mt-1"
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <Label htmlFor="description">Description</Label>
+                <Input
+                  name="description"
+                  value={formik.values.description}
+                  onChange={formik.handleChange}
+                />
+
+                {formik.touched.description && formik.errors.description && (
+                  <Text
+                    text={formik.errors.description}
+                    className="text-red-500 text-xs mt-1"
+                  />
+                )}
+              </div>
+
+              {/* Type and Value */}
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="description">Description</Label>
+                  <Label htmlFor="type">Discount Type *</Label>
+                  <Select
+                    value={formik.values.type}
+                    onValueChange={(value) =>
+                      formik.setFieldValue("type", value)
+                    }
+                  >
+                    <SelectTrigger className="mt-1.5">
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={CouponDiscount.PERCENTAGE}>
+                        Percentage (%)
+                      </SelectItem>
+                      <SelectItem value={CouponDiscount.FLAT}>
+                        Fixed Amount (₦)
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="value">Discount Value *</Label>
                   <Input
-                    name="description"
-                    value={formik.values.description}
+                    name="value"
+                    type="number"
+                    value={formik.values.value}
                     onChange={formik.handleChange}
                   />
 
-                  {formik.touched.description && formik.errors.description && (
-                    <Text
-                      text={formik.errors.description}
-                      className="text-red-500 text-xs mt-1"
-                    />
+                  {formik.touched.value && formik.errors.value && (
+                    <p className="text-red-500 text-xs">
+                      {formik.errors.value}
+                    </p>
                   )}
                 </div>
+              </div>
 
-                {/* Type and Value */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="type">Discount Type *</Label>
-                    <Select
-                      value={formik.values.type}
-                      onValueChange={(value) =>
-                        formik.setFieldValue("type", value)
-                      }
-                    >
-                      <SelectTrigger className="mt-1.5">
-                        <SelectValue placeholder="Select type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={CouponDiscount.PERCENTAGE}>
-                          Percentage (%)
-                        </SelectItem>
-                        <SelectItem value={CouponDiscount.FLAT}>
-                          Fixed Amount (₦)
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label htmlFor="value">Discount Value *</Label>
-                    <Input
-                      name="value"
-                      type="number"
-                      value={formik.values.value}
-                      onChange={formik.handleChange}
-                    />
+              {/* Expiry Date and Usage Limit */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="expiryDate">Expiry Date *</Label>
+                  <Input
+                    name="expiryDate"
+                    type="date"
+                    value={formik.values.expiryDate}
+                    onChange={formik.handleChange}
+                  />
 
-                    {formik.touched.value && formik.errors.value && (
-                      <p className="text-red-500 text-xs">
-                        {formik.errors.value}
-                      </p>
-                    )}
-                  </div>
+                  {formik.touched.expiryDate && formik.errors.expiryDate && (
+                    <p className="text-red-500 text-xs">
+                      {formik.errors.expiryDate}
+                    </p>
+                  )}
                 </div>
-
-                {/* Expiry Date and Usage Limit */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="expiryDate">Expiry Date *</Label>
-                    <Input
-                      name="expiryDate"
-                      type="date"
-                      value={formik.values.expiryDate}
-                      onChange={formik.handleChange}
-                    />
-
-                    {formik.touched.expiryDate && formik.errors.expiryDate && (
-                      <p className="text-red-500 text-xs">
-                        {formik.errors.expiryDate}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <Label htmlFor="usageLimit">Usage Limit</Label>
-                    <Input
-                      name="maxUsage"
-                      type="number"
-                      value={formik.values.maxUsage}
-                      onChange={formik.handleChange}
-                    />
-                  </div>
+                <div>
+                  <Label htmlFor="usageLimit">Usage Limit</Label>
+                  <Input
+                    name="maxUsage"
+                    type="number"
+                    value={formik.values.maxUsage}
+                    onChange={formik.handleChange}
+                  />
                 </div>
+              </div>
 
-                {/* Plan Restriction */}
-                {/* <div>
+              {/* Plan Restriction */}
+              {/* <div>
               <Label htmlFor="planRestriction">
                 Plan Restriction (Optional)
               </Label>
@@ -816,55 +811,54 @@ export default function CouponsPage() {
                 className="text-xs mt-1"
               />
             </div> */}
-                <DialogFooter>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setIsCreateModalOpen(false);
-                      setIsEditModalOpen(false);
-                      resetForm();
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit">
-                    {isCreateModalOpen ? "Create Coupon" : "Save Changes"}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
-
-          {/* Delete Confirmation Dialog */}
-          <AlertDialog
-            open={isDeleteDialogOpen}
-            onOpenChange={setIsDeleteDialogOpen}
-          >
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete Coupon</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Are you sure you want to delete{" "}
-                  <span className="font-mono font-semibold">
-                    {selectedCoupon?.code}
-                  </span>
-                  ? This action cannot be undone and the coupon will no longer
-                  be usable.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleDeleteCoupon}
-                  className="bg-red-600 hover:bg-red-700"
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsCreateModalOpen(false);
+                    setIsEditModalOpen(false);
+                    resetForm();
+                  }}
                 >
-                  Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
-      )}
+                  Cancel
+                </Button>
+                <Button type="submit">
+                  {isCreateModalOpen ? "Create Coupon" : "Save Changes"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog
+          open={isDeleteDialogOpen}
+          onOpenChange={setIsDeleteDialogOpen}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Coupon</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete{" "}
+                <span className="font-mono font-semibold">
+                  {selectedCoupon?.code}
+                </span>
+                ? This action cannot be undone and the coupon will no longer be
+                usable.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteCoupon}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
     </>
   );
 }

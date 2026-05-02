@@ -1,17 +1,21 @@
 import { authenticatedFetch } from "@/lib/api";
-
-/**
- * TYPES
- */
+import { ChurchStatus } from "@/lib/enums";
 
 export interface ChurchListItem {
   id: string;
   name: string;
+  superAdmin: {
+    id: string;
+    fullName: string;
+    email: string;
+  };
   location: string;
   totalMembers: number;
+
   totalUsers: number;
   plan: string;
   subscriptionStatus: "ACTIVE" | "EXPIRING_SOON" | "OVERDUE" | string;
+  status: ChurchStatus;
 }
 
 export interface ChurchDetails {
@@ -19,10 +23,17 @@ export interface ChurchDetails {
   name: string;
   alias?: string;
   address: string;
+  email: string;
+  founded: string;
+  phone: string;
+  pastor: string;
   country: string;
+  serviceTime: string;
+  location: string;
   state: string;
   totalMembers: number;
   totalUsers: number;
+  status: ChurchStatus;
   subscription: {
     plan: string;
     status: string;
@@ -35,6 +46,7 @@ export interface ChurchDetails {
     id: string;
     fullName: string;
     email: string;
+    phone: string;
   };
 }
 
@@ -51,9 +63,6 @@ export interface FetchChurchesResponse {
   totalCount: number;
 }
 
-/**
- * GET ALL CHURCHES
- */
 export async function getChurches(params?: {
   page?: number;
   limit?: number;
@@ -65,9 +74,13 @@ export async function getChurches(params?: {
     limit: String(params?.limit ?? 20),
   });
 
-  if (params?.search) query.append("search", params.search);
-  if (params?.plan && params.plan !== "all") query.append("plan", params.plan);
+  if (params?.search) {
+    query.append("search", params.search);
+  }
 
+  if (params?.plan && params.plan !== "all") {
+    query.append("plan", params.plan);
+  }
   return authenticatedFetch<FetchChurchesResponse>(`/church?${query}`, {
     method: "GET",
   });
@@ -76,5 +89,21 @@ export async function getChurches(params?: {
 export async function getChurchById(id: string): Promise<ChurchDetails> {
   return authenticatedFetch<ChurchDetails>(`/church/${id}`, {
     method: "GET",
+  });
+}
+
+export async function blockChurch(
+  churchId: string,
+): Promise<{ message: string }> {
+  return authenticatedFetch(`/church/${churchId}/block`, {
+    method: "PATCH",
+  });
+}
+
+export async function unblockChurch(
+  churchId: string,
+): Promise<{ message: string }> {
+  return authenticatedFetch(`/church/${churchId}/unblock`, {
+    method: "PATCH",
   });
 }

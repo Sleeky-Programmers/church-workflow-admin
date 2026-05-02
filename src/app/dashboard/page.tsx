@@ -12,13 +12,21 @@ import { Span, Text } from "@/components/ui/typography/Text";
 import { getCurrentUserProfile } from "@/lib/auth/session";
 import { cn } from "@/lib/utils";
 import { Loader } from "@/components/ui/loader";
-
+import { PlanType } from "@/lib/enums";
 import { useToast } from "@/hooks/use-toast";
 
 const planBadgeClass = {
   Enterprise: "bg-green-100 text-green-700",
   Growth: "bg-blue-100 text-blue-700",
   Starter: "bg-amber-100 text-amber-700",
+  Expansion: "bg-yellow-100 text-amber-700",
+};
+
+const colorMap = {
+  ENTERPRISE: "bg-green-500",
+  EXPANSION: "bg-purple-500",
+  GROWTH: "bg-blue-500",
+  STARTER: "bg-amber-500",
 };
 
 export default function OverviewDashboard() {
@@ -62,35 +70,56 @@ export default function OverviewDashboard() {
 
   const total =
     (overview?.churchesByPlan?.ENTERPRISE ?? 0) +
+    (overview?.churchesByPlan?.EXPANSION ?? 0) +
     (overview?.churchesByPlan?.GROWTH ?? 0) +
     (overview?.churchesByPlan?.STARTER ?? 0);
 
   const planDistribution = [
     {
       name: "Enterprise",
+      type: PlanType.ENTERPRISE,
       count: overview?.churchesByPlan?.ENTERPRISE ?? 0,
-      percentage: total
-        ? ((overview?.churchesByPlan?.ENTERPRISE ?? 0) / total) * 100
-        : 0,
-      color: "bg-green-500",
+    },
+    {
+      name: "Expansion",
+      type: PlanType.EXPANSION,
+      count: overview?.churchesByPlan?.EXPANSION ?? 0,
     },
     {
       name: "Growth",
+      type: PlanType.GROWTH,
       count: overview?.churchesByPlan?.GROWTH ?? 0,
-      percentage: total
-        ? ((overview?.churchesByPlan?.GROWTH ?? 0) / total) * 100
-        : 0,
-      color: "bg-blue-500",
     },
     {
       name: "Starter",
+      type: PlanType.STARTER,
       count: overview?.churchesByPlan?.STARTER ?? 0,
-      percentage: total
-        ? ((overview?.churchesByPlan?.STARTER ?? 0) / total) * 100
-        : 0,
-      color: "bg-amber-500",
     },
-  ];
+  ].map((plan) => {
+    const safeCount = Number(plan.count) || 0;
+
+    const percentage = total > 0 ? (safeCount / total) * 100 : 0;
+
+    return {
+      ...plan,
+      percentage: Math.min(Math.max(percentage, 0), 100),
+    };
+  });
+
+  const getColor = (type: string) => {
+    switch (type) {
+      case "ENTERPRISE":
+        return "bg-green-500";
+      case "EXPANSION":
+        return "bg-yellow-500";
+      case "GROWTH":
+        return "bg-blue-500";
+      case "STARTER":
+        return "bg-amber-500";
+      default:
+        return "bg-gray-400";
+    }
+  };
   return (
     <>
       {loading ? (
@@ -128,7 +157,6 @@ export default function OverviewDashboard() {
             />
           </div>
 
-          {/* Two Column Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             {/* Churches by Plan */}
             <Card className="rounded-2xl">
@@ -146,7 +174,10 @@ export default function OverviewDashboard() {
                     </div>
                     <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                       <div
-                        className={cn("h-full rounded-full", plan.color)}
+                        className={cn(
+                          "h-full rounded-full",
+                          getColor(plan.type),
+                        )}
                         style={{ width: `${plan.percentage}%` }}
                       />
                     </div>

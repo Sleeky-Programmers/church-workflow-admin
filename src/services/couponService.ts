@@ -20,6 +20,12 @@ interface GetAllCouponParams {
   filter?: string;
 }
 
+export interface Coupon {
+  code: string;
+  discountType: "PERCENTAGE" | "FIXED";
+  discount: number;
+}
+
 export async function getAllCoupon({
   page = 1,
   limit = 10,
@@ -61,6 +67,12 @@ export async function createCoupon(payload: couponPayload) {
   return await authenticatedFetch("/coupon", {
     method: "POST",
     body: JSON.stringify(payload),
+  });
+}
+
+export async function validateCoupon(code: string): Promise<Coupon> {
+  return authenticatedFetch(`/coupon/validate?code=${code}`, {
+    method: "GET",
   });
 }
 

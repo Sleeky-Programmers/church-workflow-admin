@@ -114,6 +114,8 @@ export type RoleStatus = "active" | "disabled";
 
 export type PermissionLevel = "no_access" | "view" | "manage" | "full_access";
 
+export type SearchType = "church" | "admin" | "both";
+
 export type ModulePermission = {
   module: string;
   level: PermissionLevel;
@@ -364,4 +366,11 @@ export type GetCouponStat = {
   activeCoupons: number;
   expiringSoon: number;
   totalUsage: number;
+};
+
+export type AdminStats = {
+  total: number;
+  active: number;
+  blocked: number;
+  superAdmins: number;
 };

@@ -150,5 +150,6 @@ const config: Config = {
     },
   },
   plugins: [tailwindcssAnimate],
+  safelist: ["bg-green-500", "bg-blue-500", "bg-red-500", "bg-amber-500"],
 };
 export default config;

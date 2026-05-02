@@ -264,12 +264,22 @@ export function formatTimeRange(startTime: string, endTime?: string): string {
   return startTime;
 }
 
-export function getInitials(name: string): string {
-  const parts = name.split(" ");
-  if (parts.length >= 2) {
-    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+export function getInitials(name?: string): string {
+  if (!name || typeof name !== "string") return "U";
+
+  const cleaned = name.trim();
+
+  if (!cleaned) {
+    return "U";
   }
-  return name.slice(0, 2).toUpperCase();
+
+  const parts = cleaned.split(/\s+/); // handles multiple spaces
+
+  if (parts.length >= 2) {
+    return `${parts[0]?.[0] || ""}${parts[1]?.[0] || ""}`.toUpperCase();
+  }
+
+  return cleaned.slice(0, 2).toUpperCase();
 }
 
 export function calculateGenderSplit(members: Member[]): {
