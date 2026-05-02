@@ -50,6 +50,31 @@ import { Text } from "@/components/ui/typography/Text";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
+// Churches list for manual payment
+const churches = [
+	{ id: 1, name: 'Grace Chapel', initials: 'GC', initBg: 'bg-green-100', initColor: 'text-green-700' },
+	{ id: 2, name: 'Harvest Fields', initials: 'HF', initBg: 'bg-blue-100', initColor: 'text-blue-700' },
+	{ id: 3, name: 'Living Word Lagos', initials: 'LW', initBg: 'bg-amber-100', initColor: 'text-amber-700' },
+	{ id: 4, name: 'Redeemed Assembly', initials: 'RA', initBg: 'bg-red-100', initColor: 'text-red-700' },
+	{ id: 5, name: 'Mount Zion Church', initials: 'MZ', initBg: 'bg-pink-100', initColor: 'text-pink-700' },
+	{ id: 6, name: "Glory House Int'l", initials: 'GH', initBg: 'bg-lime-100', initColor: 'text-lime-700' },
+	{ id: 7, name: 'Cornerstone Chapel', initials: 'CC', initBg: 'bg-purple-100', initColor: 'text-purple-700' },
+	{ id: 8, name: 'New Life Fellowship', initials: 'NL', initBg: 'bg-green-100', initColor: 'text-green-700' },
+];
+
+const planOptionsList = [
+	{ value: 'Starter', price: 0, currency: 'NGN' },
+	{ value: 'Growth', price: 15000, currency: 'NGN' },
+	{ value: 'Enterprise', price: 35000, currency: 'NGN' },
+];
+
+const durationOptions = [
+	{ value: 'monthly', label: 'Monthly' },
+	{ value: 'quarterly', label: 'Quarterly (3 months)' },
+	{ value: 'biannually', label: 'Biannually (6 months)' },
+	{ value: 'annually', label: 'Annually (12 months)' },
+];
+
 const statusConfig = {
   success: {
     label: "Success",
