@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-   title: process.env.NEXT_PUBLIC_APP_NAME,
+  title: process.env.NEXT_PUBLIC_APP_NAME,
   description: "Your Church workflow processes all in one place.",
 };
 
@@ -14,9 +15,8 @@ export default function RootLayout({
   return (
     <html lang="en" className="overflow-x-hidden">
       <body>
-    
         {children}
-
+        <Toaster />
       </body>
     </html>
   );

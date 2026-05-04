@@ -48,7 +48,7 @@ export interface ChurchDetails {
   };
   superAdmin: {
     id: string;
-    fullName: string;
+    name: string;
     email: string;
     phone: string;
   };

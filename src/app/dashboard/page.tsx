@@ -111,7 +111,7 @@ export default function OverviewDashboard() {
       case "ENTERPRISE":
         return "bg-green-500";
       case "EXPANSION":
-        return "bg-yellow-500";
+        return "bg-amber-500";
       case "GROWTH":
         return "bg-blue-500";
       case "STARTER":

@@ -107,6 +107,7 @@ export enum UserStatus {
 }
 
 export enum UserRole {
+  SUPER_ADMIN = "Super Admin",
   ADMIN = "Admin",
   FINANCE = "Finance",
   PASTOR = "Pastor",

@@ -61,8 +61,8 @@ import {
   getBillingOverview,
   Plan,
   updateSubscription,
+  calculateSubscriptionPrice,
 } from "@/services/subscriptionService";
-import { validateCoupon } from "@/services/couponService";
 
 import {
   getChurches,
@@ -101,7 +101,7 @@ export default function ChurchesPage() {
   const [selectedChurch, setSelectedChurch] = useState<ChurchDetails | null>(
     null,
   );
-
+  const [pricePreview, setPricePreview] = useState<any>(null);
   const [pagination, setPagination] = useState<any>(null);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -117,7 +117,6 @@ export default function ChurchesPage() {
     value: number;
   } | null>(null);
 
-  // Enhanced search: by church name AND/OR super admin email/name
   const filteredChurches = churches;
 
   const fetchData = async () => {
@@ -151,6 +150,11 @@ export default function ChurchesPage() {
     fetchData();
   }, [page, searchQuery, planFilter]);
 
+  useEffect(() => {
+    setDiscountApplied(null);
+    setCouponCode("");
+  }, [selectedPlan]);
+
   const handleViewDetails = async (church: ChurchListItem) => {
     try {
       setLoading(true);
@@ -172,11 +176,14 @@ export default function ChurchesPage() {
     if (!selectedPlan || !selectedChurch) return;
 
     try {
-      await updateSubscription({
+      const payload = {
         churchId: selectedChurch._id,
         plan: selectedPlan,
         billingCycle: BillingCycle.MONTHLY,
-      });
+        couponCode: couponCode.trim() ? couponCode : undefined,
+      };
+
+      await updateSubscription(payload);
 
       toast({
         title: "Success",
@@ -184,8 +191,8 @@ export default function ChurchesPage() {
       });
 
       setIsPlanModalOpen(false);
-      setCouponCode("");
       setDiscountApplied(null);
+      setCouponCode("");
 
       fetchData();
     } catch (error) {
@@ -199,12 +206,13 @@ export default function ChurchesPage() {
 
   const handleApplyCoupon = async () => {
     try {
-      const response = await validateCoupon(couponCode);
-
-      setDiscountApplied({
-        type: response.discountType,
-        value: response.discount,
+      const response = await calculateSubscriptionPrice({
+        plan: selectedPlan,
+        billingCycle: BillingCycle.MONTHLY,
+        couponCode,
       });
+
+      setPricePreview(response);
 
       toast({
         title: "Success",
@@ -212,8 +220,8 @@ export default function ChurchesPage() {
       });
     } catch (err: any) {
       toast({
-        title: "Invalid coupon",
-        description: err?.message || "Coupon is not valid",
+        title: "Error",
+        description: err?.message || "Something went wrong",
         variant: "destructive",
       });
     }
@@ -321,8 +329,9 @@ export default function ChurchesPage() {
         </Select>
       </div>
       {loading ? (
-        <div>
-          <Loader />
+        <div className="p-6">
+          {" "}
+          <Loader /> Loading Churches...
         </div>
       ) : (
         <Card className="rounded-2xl">
@@ -633,7 +642,7 @@ export default function ChurchesPage() {
                   <div className="flex items-center justify-between">
                     <Text text="Name" variant="muted" className="text-xs" />
                     <Text
-                      text={selectedChurch?.superAdmin.fullName || "N/A"}
+                      text={selectedChurch?.superAdmin.name || "N/A"}
                       className="text-sm font-medium"
                     />
                   </div>
@@ -825,7 +834,11 @@ export default function ChurchesPage() {
                   >
                     <div className="font-medium text-sm">{plan.type}</div>
                     <div className="text-xs text-gray-500 mt-0.5">
-                      {plan.monthlyPrice}
+                      <Text className="text-xs text-gray-500 mt-0.5">
+                        {plan.type === selectedPlan && pricePreview
+                          ? pricePreview.finalAmount
+                          : plan.monthlyPrice}
+                      </Text>
                     </div>
                     {selectedChurch?.subscription?.plan === plan.type && (
                       <div className="text-xs text-primary-600 mt-1">
@@ -850,7 +863,11 @@ export default function ChurchesPage() {
                   onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
                   className="flex-1"
                 />
-                <Button variant="outline" onClick={handleApplyCoupon}>
+                <Button
+                  variant="outline"
+                  onClick={handleApplyCoupon}
+                  disabled={!couponCode}
+                >
                   Apply
                 </Button>
               </div>

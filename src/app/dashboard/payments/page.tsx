@@ -202,8 +202,9 @@ export default function PaymentsPage() {
   return (
     <>
       {loading ? (
-        <div>
-          <Loader />
+        <div className="p-6">
+          {" "}
+          <Loader /> Loading Payments...
         </div>
       ) : (
         <div>

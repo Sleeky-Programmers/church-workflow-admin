@@ -9,6 +9,12 @@ export interface Plan {
   popular: boolean;
 }
 
+export interface SubscriptionPriceResponse {
+  discountAmount: number;
+  finalAmount: number;
+  currency?: string;
+}
+
 export interface BillingOverview {
   plans: Plan[];
   currentPlan: string;
@@ -32,4 +38,18 @@ export async function updateSubscription(payload: {
     method: "POST",
     body: JSON.stringify(payload),
   });
+}
+
+export async function calculateSubscriptionPrice(payload: {
+  plan: string;
+  billingCycle: string;
+  couponCode?: string;
+}): Promise<SubscriptionPriceResponse> {
+  return authenticatedFetch<SubscriptionPriceResponse>(
+    "/subscription/calculate",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
 }

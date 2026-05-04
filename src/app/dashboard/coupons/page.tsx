@@ -455,8 +455,9 @@ export default function CouponsPage() {
           </CardContent>
         </Card>
         {isLoading ? (
-          <div>
-            <Loader />
+          <div className="p-6">
+            {" "}
+            <Loader /> Loading Coupon...
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
