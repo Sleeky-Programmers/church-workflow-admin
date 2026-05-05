@@ -206,3 +206,9 @@ export enum ChurchStatus {
   ACTIVE = "ACTIVE",
   BLOCKED = "BLOCKED",
 }
+
+export enum SubscriptionAction {
+  CREATED = "SUBSCRIPTION_CREATED",
+  UPGRADED = "SUBSCRIPTION_UPGRADED",
+  UPDATED = "SUBSCRIPTION_UPDATED",
+}

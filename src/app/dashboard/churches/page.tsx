@@ -55,13 +55,12 @@ import {
   BillingCycle,
   ChurchStatus,
   ChurchSubscriptionStatus,
-  CouponDiscount,
 } from "@/lib/enums";
 import {
   getBillingOverview,
   Plan,
   updateSubscription,
-  calculateSubscriptionPrice,
+  previewSubscriptionPrice,
 } from "@/services/subscriptionService";
 
 import {
@@ -153,6 +152,7 @@ export default function ChurchesPage() {
   useEffect(() => {
     setDiscountApplied(null);
     setCouponCode("");
+    setPricePreview(null);
   }, [selectedPlan]);
 
   const handleViewDetails = async (church: ChurchListItem) => {
@@ -180,7 +180,7 @@ export default function ChurchesPage() {
         churchId: selectedChurch._id,
         plan: selectedPlan,
         billingCycle: BillingCycle.MONTHLY,
-        couponCode: couponCode.trim() ? couponCode : undefined,
+        couponCode: couponCode || undefined,
       };
 
       await updateSubscription(payload);
@@ -195,6 +195,8 @@ export default function ChurchesPage() {
       setCouponCode("");
 
       fetchData();
+      const updatedChurch = await getChurchById(selectedChurch._id);
+      setSelectedChurch(updatedChurch);
     } catch (error) {
       toast({
         title: "Error",
@@ -206,13 +208,18 @@ export default function ChurchesPage() {
 
   const handleApplyCoupon = async () => {
     try {
-      const response = await calculateSubscriptionPrice({
+      const response = await previewSubscriptionPrice({
         plan: selectedPlan,
         billingCycle: BillingCycle.MONTHLY,
         couponCode,
       });
 
       setPricePreview(response);
+
+      setDiscountApplied({
+        type: response.discountType || "",
+        value: response.discountAmount || 0,
+      });
 
       toast({
         title: "Success",
@@ -746,6 +753,24 @@ export default function ChurchesPage() {
                     className="text-sm"
                   />
                 </div>
+                <div>
+                  <Text
+                    text="Subscription Price"
+                    variant="muted"
+                    className="text-xs"
+                  />
+                  <Text
+                    text={`₦${selectedChurch?.subscription?.price?.toLocaleString() || "0"}`}
+                    className="text-sm"
+                  />
+
+                  {(selectedChurch?.subscription?.discountAmount ?? 0) > 0 && (
+                    <Text
+                      text={`Saved ₦${selectedChurch?.subscription?.discountAmount}`}
+                      className="text-xs text-green-600"
+                    />
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -819,7 +844,6 @@ export default function ChurchesPage() {
 
             {/* Plan Selection */}
             <div>
-              <Text text="Change Plan" className="text-sm font-medium mb-2" />
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 {plans.map((plan, i) => (
                   <div
@@ -834,11 +858,21 @@ export default function ChurchesPage() {
                   >
                     <div className="font-medium text-sm">{plan.type}</div>
                     <div className="text-xs text-gray-500 mt-0.5">
-                      <Text className="text-xs text-gray-500 mt-0.5">
-                        {plan.type === selectedPlan && pricePreview
-                          ? pricePreview.finalAmount
-                          : plan.monthlyPrice}
-                      </Text>
+                      {plan.type === selectedPlan && pricePreview ? (
+                        <div>
+                          <div className="font-semibold">
+                            ₦{pricePreview?.finalAmount?.toLocaleString()}
+                          </div>
+
+                          {pricePreview?.discountAmount > 0 && (
+                            <div className="text-xs text-gray-500 line-through">
+                              ₦{pricePreview?.originalAmount?.toLocaleString()}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div>₦{plan?.monthlyPrice.toLocaleString()}</div>
+                      )}
                     </div>
                     {selectedChurch?.subscription?.plan === plan.type && (
                       <div className="text-xs text-primary-600 mt-1">
@@ -872,13 +906,10 @@ export default function ChurchesPage() {
                 </Button>
               </div>
               {discountApplied && (
-                <div className="mt-2 p-2 bg-green-50 rounded-lg text-sm text-green-700">
-                  ✓ Discount applied!{" "}
-                  {discountApplied.type === CouponDiscount.PERCENTAGE
-                    ? `${discountApplied.value}% off`
-                    : "First month free"}
+                <div className="text-xs text-green-600">
+                  ₦{discountApplied.value.toLocaleString()} off
                 </div>
-              )}
+              )}{" "}
             </div>
           </div>
 

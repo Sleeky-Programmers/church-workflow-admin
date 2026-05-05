@@ -39,18 +39,38 @@ export interface ChurchDetails {
   totalUsers: number;
   status: ChurchStatus;
   subscription: {
+    _id: string;
+    churchId: string;
     plan: string;
     status: string;
-    startDate: string;
     endDate: string;
     memberLimit: number;
     userLimit: number;
+    customRolesEnabled: boolean;
+    gracePeriodEndDate: string;
+    isAutoRenew: boolean;
+    originalPrice: number;
+    price: number;
+    discountAmount: number;
+    discountValue: number;
+    couponCode: number;
+    startDate: string;
+    createdAt: string;
+    updatedAt: string;
   };
   superAdmin: {
     id: string;
     name: string;
     email: string;
     phone: string;
+    role: string;
+    status: string;
+    lastActive: string;
+    church: {
+      id: string;
+      name: string;
+      alias: string;
+    };
   };
 }
 

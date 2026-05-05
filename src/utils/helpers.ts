@@ -19,6 +19,8 @@ export function normalizePlan(plan?: string) {
       return "Enterprise";
     case "GROWTH":
       return "Growth";
+    case "EXPANSION":
+      return "Expansion";
     case "STARTER":
       return "Starter";
     default:

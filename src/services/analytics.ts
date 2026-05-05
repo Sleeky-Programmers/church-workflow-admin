@@ -60,14 +60,12 @@ export interface AnalyticsResponse {
   }[];
 
   recentActivities: {
-    data: {
-      _id: string;
-      action: string;
-      details: string;
-      plan: string;
-      createdAt: string;
-    }[];
-  };
+    action: string;
+    details: string;
+    plan: string;
+    churchName: string;
+    createdAt: string;
+  }[];
 }
 
 export async function fetchAnalytics(): Promise<AnalyticsResponse> {

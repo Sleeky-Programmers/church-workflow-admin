@@ -55,6 +55,7 @@ import { Text } from "@/components/ui/typography/Text";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 import { fetchAnalytics, AnalyticsResponse } from "@/services/analytics";
+import { SubscriptionAction } from "@/lib/enums";
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -96,7 +97,7 @@ export default function AnalyticsPage() {
   }, []);
 
   const revenueData =
-    data?.revenueSubscriptionData.map((item) => ({
+    data?.revenueSubscriptionData?.map((item) => ({
       month: item.month.split("-")[1], // "04"
       revenue: item.revenue,
       subscriptions: item.subscription,
@@ -141,26 +142,26 @@ export default function AnalyticsPage() {
       members: p.membersCount,
     })) || [];
 
-  const recentActivities = [];
+  const recentActivities = data?.recentActivities;
 
-  const totalChurches = data?.totalChurches.count || 0;
-  const totalMembers = data?.members.total.count || 0;
-  const activeMembers = data?.members.active.count || 0;
+  const totalChurches = data?.totalChurches?.count || 0;
+  const totalMembers = data?.members?.total?.count || 0;
+  const activeMembers = data?.members?.active?.count || 0;
 
   const inactiveMembers = totalMembers - activeMembers;
   const activePercentage = totalMembers
     ? (activeMembers / totalMembers) * 100
     : 0;
 
-  const mrr = data?.revenue.monthlyRecurringRevenue.amount || 0;
+  const mrr = data?.revenue?.monthlyRecurringRevenue?.amount || 0;
   const arr = mrr * 12;
-  const mrrGrowth = data?.revenue.monthlyRecurringRevenue.growth || "0%";
+  const mrrGrowth = data?.revenue?.monthlyRecurringRevenue?.growth || "0%";
 
   const conversionRate = parseFloat(
     data?.conversionRate.value.replace("%", "") || "0",
   );
-  const mostUsedPlan = data?.mostUsedPlan.plan || "";
-  const mostUsedPlanCount = data?.mostUsedPlan.count || 0;
+  const mostUsedPlan = data?.mostUsedPlan?.plan || "";
+  const mostUsedPlanCount = data?.mostUsedPlan?.count || 0;
 
   const mostUsedPlanPercentage = totalChurches
     ? (mostUsedPlanCount / totalChurches) * 100
@@ -275,11 +276,31 @@ export default function AnalyticsPage() {
     return (
       <div className="p-6">
         {" "}
-        <Loader /> Loading analytics...
+        <Loader /> Loading Analytics...
       </div>
     );
   }
 
+  if (!data) {
+    return <div>Error loading analytics</div>;
+  }
+  const activities = (data?.recentActivities || []).map((item) => {
+    let type = "payment";
+
+    if (item.action === SubscriptionAction.UPGRADED) type = "upgrade";
+    if (item.action === SubscriptionAction.CREATED) type = "new";
+
+    return {
+      id: item.createdAt,
+      type,
+      churchName: item.churchName,
+      plan: item.plan,
+      date: item.createdAt,
+      from: "",
+      to: item.plan,
+      amount: 0,
+    };
+  });
   return (
     <>
       {/* Header */}
@@ -773,8 +794,8 @@ export default function AnalyticsPage() {
             <CardDescription>Latest subscription events</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {recentActivities.map((activity) => (
-              <div key={activity.id} className="flex items-start gap-3">
+            {activities.map((activity, i) => (
+              <div key={i} className="flex items-start gap-3">
                 <div
                   className={cn(
                     "p-1.5 rounded-full",
@@ -795,12 +816,12 @@ export default function AnalyticsPage() {
                 </div>
                 <div className="flex-1">
                   <Text
-                    text={activity.church}
+                    text={activity.churchName}
                     className="text-sm font-medium"
                   />
                   {activity.type === "upgrade" ? (
                     <Text
-                      text={`Upgraded from ${activity.from} to ${activity.to}`}
+                      text={`Upgraded  to ${activity.to}`}
                       variant="muted"
                       className="text-xs"
                     />

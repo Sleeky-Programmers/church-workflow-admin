@@ -12,7 +12,11 @@ export interface Plan {
 export interface SubscriptionPriceResponse {
   discountAmount: number;
   finalAmount: number;
+  discountType?: string;
+  discountValue?: number;
+  originalAmount?: number;
   currency?: string;
+  code?: string;
 }
 
 export interface BillingOverview {
@@ -40,13 +44,13 @@ export async function updateSubscription(payload: {
   });
 }
 
-export async function calculateSubscriptionPrice(payload: {
+export async function previewSubscriptionPrice(payload: {
   plan: string;
   billingCycle: string;
   couponCode?: string;
 }): Promise<SubscriptionPriceResponse> {
   return authenticatedFetch<SubscriptionPriceResponse>(
-    "/subscription/calculate",
+    "/subscription/preview-pricing",
     {
       method: "POST",
       body: JSON.stringify(payload),
