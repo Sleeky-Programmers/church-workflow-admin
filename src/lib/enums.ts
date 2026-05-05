@@ -18,9 +18,54 @@ export enum NotificationType {
   FINANCE = "FINANCE",
 }
 
+export enum CouponFilter {
+  ALL = "all",
+  ACTIVE = "active",
+  INACTIVE = "inactive",
+  EXPIRED = "expired",
+}
+
+export enum ChurchPlanFilter {
+  ALL = "all",
+  ENTERPRISE = "Enterprise",
+  GROWTH = "Growth",
+  STARTER = "Starter",
+}
+
+export enum ChurchSearchFilter {
+  BOTH = "Both",
+  CHURCH = "Church",
+  ADMIN = "Admin",
+}
+
+export enum ChurchFilter {
+  ALL = "all",
+  ACTIVE = "active",
+  INACTIVE = "inactive",
+  EXPIRED = "expired",
+}
+
+export enum CouponDiscount {
+  PERCENTAGE = "PERCENTAGE",
+  FLAT = "FLAT",
+}
+
 export enum AdminOption {
   SUSPEND = "SUSPEND",
   RESTORE = "RESTORE",
+}
+
+export enum PlanType {
+  STARTER = "STARTER",
+  GROWTH = "GROWTH",
+  EXPANSION = "EXPANSION",
+  ENTERPRISE = "ENTERPRISE",
+}
+
+export enum ChurchSubscriptionStatus {
+  ACTIVE = "Active",
+  OVERDUE = "Overdue",
+  EXPIRING_SOON = "Expiring soon",
 }
 
 export enum ActivityDetailLabel {
@@ -62,6 +107,7 @@ export enum UserStatus {
 }
 
 export enum UserRole {
+  SUPER_ADMIN = "Super Admin",
   ADMIN = "Admin",
   FINANCE = "Finance",
   PASTOR = "Pastor",
@@ -144,4 +190,25 @@ export enum MembershipStatus {
   WORKER = "WORKER",
   LEADER = "LEADER",
   CONVERT = "NEW CONVERT",
+}
+
+export enum BillingCycle {
+  MONTHLY = "MONTHLY",
+  YEARLY = "YEARLY",
+}
+
+export enum ProductAdminStatus {
+  ACTIVE = "ACTIVE",
+  BLOCKED = "BLOCKED",
+}
+
+export enum ChurchStatus {
+  ACTIVE = "ACTIVE",
+  BLOCKED = "BLOCKED",
+}
+
+export enum SubscriptionAction {
+  CREATED = "SUBSCRIPTION_CREATED",
+  UPGRADED = "SUBSCRIPTION_UPGRADED",
+  UPDATED = "SUBSCRIPTION_UPDATED",
 }

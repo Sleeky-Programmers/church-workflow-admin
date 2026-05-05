@@ -87,16 +87,13 @@ export async function authenticatedFetch<T>(
   }
 
   if (!response.ok) {
-    const message =
-      typeof data === "object" && data && "message" in data
-        ? String((data as { message?: unknown }).message || "Request failed")
-        : "Request failed";
-    const error: any = new Error(message);
-    error.response = { status: response.status };
+    const error: any = new Error((data as any)?.message || "Request failed");
+
     error.status = response.status;
+    error.data = data; //
+
     throw error;
   }
-
   return data as T;
 }
 

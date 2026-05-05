@@ -12,6 +12,7 @@ import {
   MembershipStatus,
 } from "@/lib/enums";
 import { LucideIcon } from "lucide-react";
+import { CouponDiscount } from "@/lib/enums";
 
 export type ActivityRow = {
   _id: string;
@@ -112,6 +113,8 @@ export type RoleType = "system" | "custom";
 export type RoleStatus = "active" | "disabled";
 
 export type PermissionLevel = "no_access" | "view" | "manage" | "full_access";
+
+export type SearchType = "church" | "admin" | "both";
 
 export type ModulePermission = {
   module: string;
@@ -332,4 +335,42 @@ export type SpecialServiceEvent = {
   description?: string;
   recurrence: "none" | "monthly-first-sunday";
   daySchedules: SpecialServiceDaySchedule[];
+};
+
+export type CouponData = {
+  id: string;
+  code: string;
+  description: string;
+  discountType: string;
+  discount: number;
+  maxUsage: number;
+  usageCount: number;
+  expiryDate: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type couponPayload = {
+  code: string;
+  description: string;
+  discountType: CouponDiscount;
+  discount: number;
+  maxUsage: number;
+  expiryDate: string;
+  isActive?: boolean;
+};
+
+export type GetCouponStat = {
+  totalCoupons: number;
+  activeCoupons: number;
+  expiringSoon: number;
+  totalUsage: number;
+};
+
+export type AdminStats = {
+  total: number;
+  active: number;
+  blocked: number;
+  superAdmins: number;
 };
