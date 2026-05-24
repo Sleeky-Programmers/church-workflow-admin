@@ -1,7 +1,7 @@
 'use client';
 
-import { Church, CreditCard, Lock, Mail, MapPin, Search, Unlock, UserCog, Users } from 'lucide-react';
-import { useState } from 'react';
+import { Church as ChurchIcon, CreditCard, Lock, Mail, MapPin, Search, Unlock, UserCog, Users } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 import {
 	AlertDialog,
@@ -13,7 +13,6 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-// import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -23,350 +22,298 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import Heading from '@/components/ui/typography/Heading';
-import { Span, Text } from '@/components/ui/typography/Text';
+import { Text } from '@/components/ui/typography/Text';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { Church, fetchChurchById, fetchChurches, PlanType, SubscriptionStatus } from '@/services/churchService';
+import { validateCoupon } from '@/services/couponService';
 
-// Extended churches data with super admin info
-const allChurches = [
-	{
-		id: 1,
-		name: 'Grace Chapel',
-		initials: 'GC',
-		initBg: 'bg-green-100',
-		initColor: 'text-green-700',
-		location: 'Lagos, NG',
-		address: '123 Bishop Avenue, Ikeja, Lagos',
-		members: 1240,
-		userCount: 45,
-		plan: 'Enterprise',
-		status: 'active',
-		isBlocked: false,
-		expires: 'Dec 2025',
-		email: 'info@gracechapel.org',
-		phone: '+234 801 234 5678',
-		pastor: 'Rev. Michael Okafor',
-		founded: '2015',
-		serviceTime: 'Sundays 9:00 AM & 11:00 AM',
-		superAdmin: {
-			name: 'Michael Okafor',
-			email: 'michael@gracechapel.org',
-			phone: '+234 801 234 5670',
-		},
-	},
-	{
-		id: 2,
-		name: 'Harvest Fields',
-		initials: 'HF',
-		initBg: 'bg-blue-100',
-		initColor: 'text-blue-700',
-		location: 'Abuja, NG',
-		address: '45 Gudu District, Abuja',
-		members: 987,
-		userCount: 32,
-		plan: 'Growth',
-		status: 'active',
-		isBlocked: false,
-		expires: 'Nov 2025',
-		email: 'contact@harvestfields.org',
-		phone: '+234 802 345 6789',
-		pastor: 'Pastor Sarah Ibrahim',
-		founded: '2018',
-		serviceTime: 'Sundays 10:00 AM',
-		superAdmin: {
-			name: 'Sarah Ibrahim',
-			email: 'sarah@harvestfields.org',
-			phone: '+234 802 345 6780',
-		},
-	},
-	{
-		id: 3,
-		name: 'Living Word Lagos',
-		initials: 'LW',
-		initBg: 'bg-amber-100',
-		initColor: 'text-amber-700',
-		location: 'Lagos, NG',
-		address: '78 Surulere Road, Lagos',
-		members: 743,
-		userCount: 18,
-		plan: 'Starter',
-		status: 'active',
-		isBlocked: false,
-		expires: 'Free',
-		email: 'hello@livingword.org',
-		phone: '+234 803 456 7890',
-		pastor: 'Pastor David Adeleke',
-		founded: '2020',
-		serviceTime: 'Sundays 8:00 AM & 10:00 AM',
-		superAdmin: {
-			name: 'David Adeleke',
-			email: 'david@livingword.org',
-			phone: '+234 803 456 7891',
-		},
-	},
-	{
-		id: 4,
-		name: 'Redeemed Assembly',
-		initials: 'RA',
-		initBg: 'bg-red-100',
-		initColor: 'text-red-700',
-		location: 'Port Harcourt, NG',
-		address: '12 Trans-Amadi Road, Port Harcourt',
-		members: 621,
-		userCount: 15,
-		plan: 'Growth',
-		status: 'expiring',
-		isBlocked: false,
-		expires: 'Apr 10, 2026',
-		email: 'info@redeemedassembly.org',
-		phone: '+234 804 567 8901',
-		pastor: 'Pastor John Eze',
-		founded: '2016',
-		serviceTime: 'Sundays 9:00 AM',
-		superAdmin: {
-			name: 'John Eze',
-			email: 'john@redeemedassembly.org',
-			phone: '+234 804 567 8902',
-		},
-	},
-	{
-		id: 5,
-		name: 'Mount Zion Church',
-		initials: 'MZ',
-		initBg: 'bg-pink-100',
-		initColor: 'text-pink-700',
-		location: 'Kano, NG',
-		address: '5 Bompai Road, Kano',
-		members: 510,
-		userCount: 12,
-		plan: 'Enterprise',
-		status: 'overdue',
-		isBlocked: true,
-		expires: 'Mar 1, 2026',
-		email: 'mountzion@church.org',
-		phone: '+234 805 678 9012',
-		pastor: 'Pastor Samuel Yusuf',
-		founded: '2012',
-		serviceTime: 'Sundays 8:30 AM',
-		superAdmin: {
-			name: 'Samuel Yusuf',
-			email: 'samuel@mountzion.org',
-			phone: '+234 805 678 9013',
-		},
-	},
-	{
-		id: 6,
-		name: "Glory House Int'l",
-		initials: 'GH',
-		initBg: 'bg-lime-100',
-		initColor: 'text-lime-700',
-		location: 'Ibadan, NG',
-		address: '34 Ring Road, Ibadan',
-		members: 388,
-		userCount: 10,
-		plan: 'Growth',
-		status: 'active',
-		isBlocked: false,
-		expires: 'Jan 2026',
-		email: 'gloryhouse@outlook.com',
-		phone: '+234 806 789 0123',
-		pastor: 'Pastor Joshua Adebayo',
-		founded: '2019',
-		serviceTime: 'Sundays 9:00 AM',
-		superAdmin: {
-			name: 'Joshua Adebayo',
-			email: 'joshua@gloryhouse.org',
-			phone: '+234 806 789 0124',
-		},
-	},
-	{
-		id: 7,
-		name: 'Cornerstone Chapel',
-		initials: 'CC',
-		initBg: 'bg-purple-100',
-		initColor: 'text-purple-700',
-		location: 'Lagos, NG',
-		address: '89 Victoria Island, Lagos',
-		members: 276,
-		userCount: 8,
-		plan: 'Starter',
-		status: 'active',
-		isBlocked: false,
-		expires: 'Free',
-		email: 'cornerstone@chapel.com',
-		phone: '+234 807 890 1234',
-		pastor: 'Pastor Femi Ogunlesi',
-		founded: '2021',
-		serviceTime: 'Sundays 10:00 AM',
-		superAdmin: {
-			name: 'Femi Ogunlesi',
-			email: 'femi@cornerstone.org',
-			phone: '+234 807 890 1235',
-		},
-	},
-	{
-		id: 8,
-		name: 'New Life Fellowship',
-		initials: 'NL',
-		initBg: 'bg-green-100',
-		initColor: 'text-green-700',
-		location: 'Enugu, NG',
-		address: '15 Independence Layout, Enugu',
-		members: 201,
-		userCount: 6,
-		plan: 'Growth',
-		status: 'active',
-		isBlocked: false,
-		expires: 'Feb 2026',
-		email: 'newlife@fellowship.org',
-		phone: '+234 808 901 2345',
-		pastor: 'Pastor Chidi Okonkwo',
-		founded: '2017',
-		serviceTime: 'Sundays 8:00 AM',
-		superAdmin: {
-			name: 'Chidi Okonkwo',
-			email: 'chidi@newlife.org',
-			phone: '+234 808 901 2346',
-		},
-	},
-];
-
-const planBadgeClass = {
-	Enterprise: 'bg-green-100 text-green-700',
-	Growth: 'bg-blue-100 text-blue-700',
-	Starter: 'bg-amber-100 text-amber-700',
+// Helper function to get initials from church name
+const getInitials = (name: string) => {
+	return name
+		.split(' ')
+		.map((word) => word[0])
+		.join('')
+		.toUpperCase()
+		.slice(0, 2);
 };
 
-const statusBadgeClass = {
-	active: 'bg-green-100 text-green-700',
-	expiring: 'bg-amber-100 text-amber-700',
-	overdue: 'bg-red-100 text-red-700',
+// Helper function to get random color for avatar
+const getAvatarColor = (name: string) => {
+	const colors = [
+		{ bg: 'bg-green-100', text: 'text-green-700' },
+		{ bg: 'bg-blue-100', text: 'text-blue-700' },
+		{ bg: 'bg-amber-100', text: 'text-amber-700' },
+		{ bg: 'bg-purple-100', text: 'text-purple-700' },
+		{ bg: 'bg-pink-100', text: 'text-pink-700' },
+		{ bg: 'bg-indigo-100', text: 'text-indigo-700' },
+		{ bg: 'bg-red-100', text: 'text-red-700' },
+		{ bg: 'bg-lime-100', text: 'text-lime-700' },
+	];
+	const index = name.length % colors.length;
+	return colors[index];
 };
 
-const statusLabel = {
-	active: 'Active',
-	expiring: 'Expiring soon',
-	overdue: 'Overdue',
+const planBadgeClass: Record<PlanType, string> = {
+	ENTERPRISE: 'bg-green-100 text-green-700',
+	GROWTH: 'bg-blue-100 text-blue-700',
+	STARTER: 'bg-amber-100 text-amber-700',
+	EXPANSION: 'bg-purple-100 text-purple-700',
+};
+
+const statusBadgeClass: Record<SubscriptionStatus, string> = {
+	'Active': 'bg-green-100 text-green-700',
+	'Expiring soon': 'bg-amber-100 text-amber-700',
+	'Overdue': 'bg-red-100 text-red-700',
+	'Expired': 'bg-gray-100 text-gray-700',
 };
 
 const planOptions = [
-	{ id: 'starter', name: 'Starter', price: 'Free', maxMembers: 100 },
-	{ id: 'growth', name: 'Growth', price: '₦15,000/mo', maxMembers: 500 },
-	{ id: 'enterprise', name: 'Enterprise', price: '₦35,000/mo', maxMembers: 'Unlimited' },
+	{ id: 'STARTER', name: 'Starter', price: 'Free' },
+	{ id: 'GROWTH', name: 'Growth', price: '₦15,000/mo' },
+	{ id: 'EXPANSION', name: 'Expansion', price: '₦25,000/mo' },
+	{ id: 'ENTERPRISE', name: 'Enterprise', price: '₦35,000/mo' },
 ];
 
-type SearchType = 'church' | 'admin' | 'both';
+type SearchType = 'church' | 'location' | 'both';
 
 export default function ChurchesPage() {
 	const { toast } = useToast();
 	const [searchQuery, setSearchQuery] = useState('');
 	const [searchType, setSearchType] = useState<SearchType>('both');
 	const [planFilter, setPlanFilter] = useState<string>('all');
-	const [selectedChurch, setSelectedChurch] = useState<(typeof allChurches)[0] | null>(null);
+	const [statusFilter, setStatusFilter] = useState<string>('all');
+	const [selectedChurch, setSelectedChurch] = useState<Church | null>(null);
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
 	const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
 	const [selectedPlan, setSelectedPlan] = useState('');
 	const [couponCode, setCouponCode] = useState('');
 	const [discountApplied, setDiscountApplied] = useState<{ type: string; value: number } | null>(null);
-	const [churches, setChurches] = useState(allChurches);
+	const [churches, setChurches] = useState<Church[]>([]);
+	const [totalCount, setTotalCount] = useState(0);
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState<string | null>(null);
+	const [isSubmitting, setIsSubmitting] = useState(false);
 
-	// Enhanced search: by church name AND/OR super admin email/name
-	const filteredChurches = churches.filter((church) => {
-		const matchesPlan = planFilter === 'all' || church.plan === planFilter;
+	// Fetch churches on load and when filters change
+	useEffect(() => {
+		fetchChurchesData();
+	}, [planFilter, statusFilter]);
 
-		if (!searchQuery) return matchesPlan;
+	const fetchChurchesData = async () => {
+		setLoading(true);
+		setError(null);
+		try {
+			const params: any = { limit: 100 };
+			if (planFilter !== 'all') params.plan = planFilter;
+			if (statusFilter !== 'all') params.subscriptionStatus = statusFilter;
 
-		const query = searchQuery.toLowerCase();
-
-		const matchesChurchName = church.name.toLowerCase().includes(query);
-		const matchesAdminName = church.superAdmin.name.toLowerCase().includes(query);
-		const matchesAdminEmail = church.superAdmin.email.toLowerCase().includes(query);
-
-		let matchesSearch = false;
-		switch (searchType) {
-			case 'church':
-				matchesSearch = matchesChurchName;
-				break;
-			case 'admin':
-				matchesSearch = matchesAdminName || matchesAdminEmail;
-				break;
-			case 'both':
-			default:
-				matchesSearch = matchesChurchName || matchesAdminName || matchesAdminEmail;
-				break;
+			const response = await fetchChurches(params);
+			setChurches(response.data);
+			setTotalCount(response.totalCount);
+		} catch (err) {
+			console.error('Failed to fetch churches:', err);
+			setError(err instanceof Error ? err.message : 'Failed to load churches');
+			toast({
+				title: 'Error',
+				description: 'Failed to load churches',
+				variant: 'destructive',
+			});
+		} finally {
+			setLoading(false);
 		}
-
-		return matchesSearch && matchesPlan;
-	});
-
-	const handleViewDetails = (church: (typeof allChurches)[0]) => {
-		setSelectedChurch(church);
-		setIsModalOpen(true);
 	};
 
-	const handlePlanChange = () => {
-		if (!selectedChurch || !selectedPlan) return;
-
-		const updatedChurches = churches.map((c) => (c.id === selectedChurch.id ? { ...c, plan: selectedPlan } : c));
-		setChurches(updatedChurches);
-
-		toast({
-			title: 'Plan Updated',
-			description: `${selectedChurch.name} plan changed from ${selectedChurch.plan} to ${selectedPlan}`,
-		});
-
-		setIsPlanModalOpen(false);
-		setSelectedPlan('');
-		setCouponCode('');
-		setDiscountApplied(null);
-	};
-
-	const handleApplyCoupon = () => {
-		if (couponCode === 'WELCOME20') {
-			setDiscountApplied({ type: 'percentage', value: 20 });
+	const fetchSingleChurch = async (id: string) => {
+		try {
+			const church = await fetchChurchById(id);
+			setSelectedChurch(church);
+		} catch (err) {
+			console.error('Failed to fetch church details:', err);
 			toast({
-				title: 'Coupon Applied',
-				description: '20% discount applied to this plan change',
-			});
-		} else if (couponCode === 'FIRSTFREE') {
-			setDiscountApplied({ type: 'free', value: 100 });
-			toast({
-				title: 'Coupon Applied',
-				description: 'First month free discount applied',
-			});
-		} else {
-			toast({
-				title: 'Invalid Coupon',
-				description: 'The coupon code you entered is not valid',
+				title: 'Error',
+				description: 'Failed to load church details',
 				variant: 'destructive',
 			});
 		}
 	};
 
-	const handleToggleBlock = () => {
+	const filteredChurches = churches.filter((church) => {
+		if (!searchQuery) return true;
+
+		const query = searchQuery.toLowerCase();
+
+		if (searchType === 'church') {
+			return church.name.toLowerCase().includes(query);
+		} else if (searchType === 'location') {
+			return church.location.toLowerCase().includes(query);
+		} else {
+			return church.name.toLowerCase().includes(query) || church.location.toLowerCase().includes(query);
+		}
+	});
+
+	const handleViewDetails = (church: Church) => {
+		setSelectedChurch(church);
+		setIsModalOpen(true);
+	};
+
+	const handlePlanChange = async () => {
+		if (!selectedChurch || !selectedPlan) return;
+
+		setIsSubmitting(true);
+		try {
+			// TODO: Call API to update church plan when endpoint is available
+			// const updatedChurch = await updateChurchPlan(selectedChurch.id, { plan: selectedPlan });
+
+			// For now, update locally
+			const updatedChurches = churches.map((c) => (c.id === selectedChurch.id ? { ...c, plan: selectedPlan as PlanType } : c));
+			setChurches(updatedChurches);
+
+			toast({
+				title: 'Plan Updated',
+				description: `${selectedChurch.name} plan changed from ${selectedChurch.plan} to ${selectedPlan}`,
+			});
+
+			setIsPlanModalOpen(false);
+			setSelectedPlan('');
+			setCouponCode('');
+			setDiscountApplied(null);
+		} catch (err) {
+			console.error('Failed to update plan:', err);
+			toast({
+				title: 'Error',
+				description: err instanceof Error ? err.message : 'Failed to update plan',
+				variant: 'destructive',
+			});
+		} finally {
+			setIsSubmitting(false);
+		}
+	};
+
+	const handleApplyCoupon = async () => {
+		if (!couponCode) return;
+
+		setIsSubmitting(true);
+		try {
+			const result = await validateCoupon(couponCode);
+			if (result.valid && result.coupon) {
+				setDiscountApplied({
+					type: result.coupon.discountType === 'PERCENTAGE' ? 'percentage' : 'fixed',
+					value: result.coupon.discount,
+				});
+				toast({
+					title: 'Coupon Applied',
+					description: `${result.coupon.discount}${result.coupon.discountType === 'PERCENTAGE' ? '%' : '₦'} discount applied`,
+				});
+			} else {
+				toast({
+					title: 'Invalid Coupon',
+					description: result.message || 'The coupon code you entered is not valid',
+					variant: 'destructive',
+				});
+			}
+		} catch (err) {
+			console.error('Failed to validate coupon:', err);
+			toast({
+				title: 'Error',
+				description: 'Failed to validate coupon',
+				variant: 'destructive',
+			});
+		} finally {
+			setIsSubmitting(false);
+		}
+	};
+
+	const handleToggleBlock = async () => {
 		if (!selectedChurch) return;
 
-		const newBlockStatus = !selectedChurch.isBlocked;
-		const updatedChurches = churches.map((c) => (c.id === selectedChurch.id ? { ...c, isBlocked: newBlockStatus } : c));
-		setChurches(updatedChurches);
-		setSelectedChurch({ ...selectedChurch, isBlocked: newBlockStatus });
-
-		toast({
-			title: newBlockStatus ? 'Church Blocked' : 'Church Unblocked',
-			description: newBlockStatus
-				? `${selectedChurch.name} has been blocked. They cannot access platform features.`
-				: `${selectedChurch.name} has been unblocked and can now access all features.`,
-			variant: newBlockStatus ? 'destructive' : 'default',
-		});
-
-		setIsBlockModalOpen(false);
+		setIsSubmitting(true);
+		try {
+			// TODO: Call API to block/unblock church when endpoint is available
+			// For now, just show toast
+			// toast({
+			// 	title: selectedChurch.isBlocked ? 'Church Unblocked' : 'Church Blocked',
+			// 	description: selectedChurch.isBlocked ? `${selectedChurch.name} has been unblocked.` : `${selectedChurch.name} has been blocked.`,
+			// });
+			setIsBlockModalOpen(false);
+		} catch (err) {
+			console.error('Failed to toggle block status:', err);
+			toast({
+				title: 'Error',
+				description: err instanceof Error ? err.message : 'Failed to update block status',
+				variant: 'destructive',
+			});
+		} finally {
+			setIsSubmitting(false);
+		}
 	};
 
 	const openPlanModal = () => {
 		setSelectedPlan(selectedChurch?.plan || '');
 		setIsPlanModalOpen(true);
 	};
+
+	const getStatusBadge = (status: SubscriptionStatus) => {
+		return statusBadgeClass[status] || 'bg-gray-100 text-gray-700';
+	};
+
+	// Calculate stats
+	const activeChurches = churches.filter((c) => c.subscriptionStatus === 'Active').length;
+	const expiringChurches = churches.filter((c) => c.subscriptionStatus === 'Expiring soon').length;
+	const overdueChurches = churches.filter((c) => c.subscriptionStatus === 'Overdue').length;
+	const totalMembers = churches.reduce((sum, c) => sum + c.totalMembers, 0);
+
+	if (loading) {
+		return (
+			<div className="space-y-6">
+				<div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+					<div className="h-10 w-48 bg-gray-200 rounded animate-pulse" />
+					<div className="h-10 w-32 bg-gray-200 rounded animate-pulse" />
+				</div>
+				<div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
+					{[1, 2, 3, 4].map((i) => (
+						<div
+							key={i}
+							className="h-24 bg-gray-100 rounded-2xl animate-pulse"
+						/>
+					))}
+				</div>
+				<div className="flex flex-col sm:flex-row gap-3 mb-6">
+					<div className="h-10 flex-1 bg-gray-200 rounded animate-pulse" />
+					<div className="h-10 w-[180px] bg-gray-200 rounded animate-pulse" />
+				</div>
+				<Card className="rounded-2xl">
+					<CardContent className="p-0">
+						<div className="space-y-2 p-4">
+							{[1, 2, 3, 4, 5].map((i) => (
+								<div
+									key={i}
+									className="h-16 bg-gray-100 rounded animate-pulse"
+								/>
+							))}
+						</div>
+					</CardContent>
+				</Card>
+			</div>
+		);
+	}
+
+	if (error && churches.length === 0) {
+		return (
+			<div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+				<div className="text-red-600 text-center">
+					<p className="font-semibold">Failed to load churches</p>
+					<p className="text-sm mt-1">{error}</p>
+				</div>
+				<Button
+					onClick={fetchChurchesData}
+					variant="outline">
+					Try Again
+				</Button>
+			</div>
+		);
+	}
 
 	return (
 		<>
@@ -377,23 +324,130 @@ export default function ChurchesPage() {
 						text="Churches"
 					/>
 					<Text
-						text="24 registered churches across the platform"
+						text={`${totalCount} registered churches across the platform`}
 						variant="muted"
 					/>
 				</div>
-				<Select
-					value={planFilter}
-					onValueChange={setPlanFilter}>
-					<SelectTrigger className="w-[140px]">
-						<SelectValue placeholder="All Plans" />
-					</SelectTrigger>
-					<SelectContent>
-						<SelectItem value="all">All Plans</SelectItem>
-						<SelectItem value="Enterprise">Enterprise</SelectItem>
-						<SelectItem value="Growth">Growth</SelectItem>
-						<SelectItem value="Starter">Starter</SelectItem>
-					</SelectContent>
-				</Select>
+				<div className="flex gap-2">
+					<Select
+						value={planFilter}
+						onValueChange={setPlanFilter}>
+						<SelectTrigger className="w-[140px]">
+							<SelectValue placeholder="All Plans" />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="all">All Plans</SelectItem>
+							<SelectItem value="ENTERPRISE">Enterprise</SelectItem>
+							<SelectItem value="EXPANSION">Expansion</SelectItem>
+							<SelectItem value="GROWTH">Growth</SelectItem>
+							<SelectItem value="STARTER">Starter</SelectItem>
+						</SelectContent>
+					</Select>
+					<Select
+						value={statusFilter}
+						onValueChange={setStatusFilter}>
+						<SelectTrigger className="w-[150px]">
+							<SelectValue placeholder="All Status" />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="all">All Status</SelectItem>
+							<SelectItem value="Active">Active</SelectItem>
+							<SelectItem value="Expiring soon">Expiring Soon</SelectItem>
+							<SelectItem value="Overdue">Overdue</SelectItem>
+						</SelectContent>
+					</Select>
+				</div>
+			</div>
+
+			{/* Stats Cards */}
+			<div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
+				<Card className="rounded-2xl">
+					<CardContent className="pt-6">
+						<div className="flex items-center justify-between">
+							<div>
+								<Text
+									text="Total Churches"
+									variant="muted"
+									className="text-sm"
+								/>
+								<Heading
+									level={2}
+									text={totalCount.toString()}
+									className="text-2xl font-semibold mt-1"
+								/>
+							</div>
+							<div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center">
+								<ChurchIcon className="w-5 h-5 text-primary-600" />
+							</div>
+						</div>
+					</CardContent>
+				</Card>
+
+				<Card className="rounded-2xl">
+					<CardContent className="pt-6">
+						<div className="flex items-center justify-between">
+							<div>
+								<Text
+									text="Active Churches"
+									variant="muted"
+									className="text-sm"
+								/>
+								<Heading
+									level={2}
+									text={activeChurches.toString()}
+									className="text-2xl font-semibold mt-1"
+								/>
+							</div>
+							<div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+								<Badge className="bg-green-500">✓</Badge>
+							</div>
+						</div>
+					</CardContent>
+				</Card>
+
+				<Card className="rounded-2xl">
+					<CardContent className="pt-6">
+						<div className="flex items-center justify-between">
+							<div>
+								<Text
+									text="Expiring Soon"
+									variant="muted"
+									className="text-sm"
+								/>
+								<Heading
+									level={2}
+									text={expiringChurches.toString()}
+									className="text-2xl font-semibold mt-1"
+								/>
+							</div>
+							<div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+								<Badge className="bg-amber-500">!</Badge>
+							</div>
+						</div>
+					</CardContent>
+				</Card>
+
+				<Card className="rounded-2xl">
+					<CardContent className="pt-6">
+						<div className="flex items-center justify-between">
+							<div>
+								<Text
+									text="Total Members"
+									variant="muted"
+									className="text-sm"
+								/>
+								<Heading
+									level={2}
+									text={totalMembers.toLocaleString()}
+									className="text-2xl font-semibold mt-1"
+								/>
+							</div>
+							<div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+								<Users className="w-5 h-5 text-blue-600" />
+							</div>
+						</div>
+					</CardContent>
+				</Card>
 			</div>
 
 			{/* Enhanced Search Bar with Type Selector */}
@@ -402,11 +456,7 @@ export default function ChurchesPage() {
 					<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
 					<Input
 						placeholder={
-							searchType === 'church'
-								? 'Search by church name...'
-								: searchType === 'admin'
-									? 'Search by super admin name or email...'
-									: 'Search by church name, admin name, or email...'
+							searchType === 'church' ? 'Search by church name...' : searchType === 'location' ? 'Search by location...' : 'Search by church name or location...'
 						}
 						value={searchQuery}
 						onChange={(e) => setSearchQuery(e.target.value)}
@@ -420,9 +470,9 @@ export default function ChurchesPage() {
 						<SelectValue placeholder="Search by..." />
 					</SelectTrigger>
 					<SelectContent>
-						<SelectItem value="both">Church & Admin</SelectItem>
+						<SelectItem value="both">Church & Location</SelectItem>
 						<SelectItem value="church">Church Name Only</SelectItem>
-						<SelectItem value="admin">Super Admin Only</SelectItem>
+						<SelectItem value="location">Location Only</SelectItem>
 					</SelectContent>
 				</Select>
 			</div>
@@ -435,7 +485,6 @@ export default function ChurchesPage() {
 							<thead>
 								<tr className="border-b">
 									<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Church</th>
-									<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Super Admin</th>
 									<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Location</th>
 									<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Members</th>
 									<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Users</th>
@@ -445,46 +494,31 @@ export default function ChurchesPage() {
 								</tr>
 							</thead>
 							<tbody>
-								{filteredChurches.map((church) => (
-									<tr
-										key={church.id}
-										className={cn('border-b last:border-0 hover:bg-gray-50 transition-colors', church.isBlocked && 'bg-red-50/30 hover:bg-red-50/50')}>
-										<td className="py-3 px-4">
-											<div className="flex items-center gap-3">
-												<Avatar className="h-8 w-8">
-													<AvatarFallback className={cn(church.initBg, church.initColor)}>{church.initials}</AvatarFallback>
-												</Avatar>
-												<div>
+								{filteredChurches.map((church) => {
+									const avatarColor = getAvatarColor(church.name);
+
+									return (
+										<tr
+											key={church.id}
+											className="border-b last:border-0 hover:bg-gray-50 transition-colors">
+											<td className="py-3 px-4">
+												<div className="flex items-center gap-3">
+													<Avatar className="h-8 w-8">
+														<AvatarFallback className={cn(avatarColor.bg, avatarColor.text)}>{getInitials(church.name)}</AvatarFallback>
+													</Avatar>
 													<span className="font-medium">{church.name}</span>
-													{church.isBlocked && (
-														<Badge
-															variant="destructive"
-															className="ml-2 text-xs">
-															Blocked
-														</Badge>
-													)}
 												</div>
-											</div>
-										</td>
-										<td className="py-3 px-4">
-											<div>
-												<div className="font-medium text-sm">{church.superAdmin.name}</div>
-												<div className="text-xs text-gray-500">{church.superAdmin.email}</div>
-											</div>
-										</td>
-										<td className="py-3 px-4 text-gray-500 text-sm">{church.location}</td>
-										<td className="py-3 px-4 font-medium">{church.members.toLocaleString()}</td>
-										<td className="py-3 px-4 font-medium">{church.userCount.toLocaleString()}</td>
-										<td className="py-3 px-4">
-											<span className={cn('px-2 py-1 rounded-full text-xs font-medium', planBadgeClass[church.plan as keyof typeof planBadgeClass])}>{church.plan}</span>
-										</td>
-										<td className="py-3 px-4">
-											<span className={cn('px-2 py-1 rounded-full text-xs font-medium', statusBadgeClass[church.status as keyof typeof statusBadgeClass])}>
-												{statusLabel[church.status as keyof typeof statusLabel]}
-											</span>
-										</td>
-										<td className="py-3 px-4">
-											<div className="flex gap-2">
+											</td>
+											<td className="py-3 px-4 text-gray-500 text-sm">{church.location}</td>
+											<td className="py-3 px-4 font-medium">{church.totalMembers.toLocaleString()}</td>
+											<td className="py-3 px-4 font-medium">{church.totalUsers.toLocaleString()}</td>
+											<td className="py-3 px-4">
+												<span className={cn('px-2 py-1 rounded-full text-xs font-medium', planBadgeClass[church.plan])}>{church.plan}</span>
+											</td>
+											<td className="py-3 px-4">
+												<span className={cn('px-2 py-1 rounded-full text-xs font-medium', getStatusBadge(church.subscriptionStatus))}>{church.subscriptionStatus}</span>
+											</td>
+											<td className="py-3 px-4">
 												<Button
 													variant="outline"
 													size="sm"
@@ -492,40 +526,15 @@ export default function ChurchesPage() {
 													onClick={() => handleViewDetails(church)}>
 													View
 												</Button>
-												{church.isBlocked ? (
-													<Button
-														variant="ghost"
-														size="sm"
-														className="h-8 text-green-600 hover:text-green-700 hover:bg-green-50"
-														onClick={() => {
-															setSelectedChurch(church);
-															setIsBlockModalOpen(true);
-														}}>
-														<Unlock className="h-3.5 w-3.5 mr-1" />
-														Unblock
-													</Button>
-												) : (
-													<Button
-														variant="ghost"
-														size="sm"
-														className="h-8 text-red-600 hover:text-red-700 hover:bg-red-50"
-														onClick={() => {
-															setSelectedChurch(church);
-															setIsBlockModalOpen(true);
-														}}>
-														<Lock className="h-3.5 w-3.5 mr-1" />
-														Block
-													</Button>
-												)}
-											</div>
-										</td>
-									</tr>
-								))}
+											</td>
+										</tr>
+									);
+								})}
 							</tbody>
 						</table>
 					</div>
 
-					{filteredChurches.length === 0 && (
+					{filteredChurches.length === 0 && !loading && (
 						<div className="text-center py-12">
 							<Search className="h-12 w-12 text-gray-300 mx-auto mb-3" />
 							<Text
@@ -546,31 +555,24 @@ export default function ChurchesPage() {
 			<Dialog
 				open={isModalOpen}
 				onOpenChange={setIsModalOpen}>
-				<DialogContent className="sm:max-w-[650px] max-h-[85vh] overflow-y-auto">
+				<DialogContent className="sm:max-w-[550px] max-h-[85vh] overflow-y-auto">
 					<DialogHeader>
 						<DialogTitle className="flex items-center justify-between">
 							<div className="flex items-center gap-3">
 								<Avatar className="h-10 w-10">
-									<AvatarFallback className={cn(selectedChurch?.initBg, selectedChurch?.initColor, 'text-sm')}>{selectedChurch?.initials}</AvatarFallback>
+									<AvatarFallback className={cn('text-sm', getAvatarColor(selectedChurch?.name || '').bg, getAvatarColor(selectedChurch?.name || '').text)}>
+										{getInitials(selectedChurch?.name || '')}
+									</AvatarFallback>
 								</Avatar>
 								<div>
 									<div className="text-xl">{selectedChurch?.name}</div>
 									<div className="flex items-center gap-2 mt-0.5">
-										<span
-											className={cn(
-												'px-2 py-0.5 rounded-full text-xs font-medium',
-												selectedChurch && planBadgeClass[selectedChurch.plan as keyof typeof planBadgeClass]
-											)}>
+										<span className={cn('px-2 py-0.5 rounded-full text-xs font-medium', selectedChurch && planBadgeClass[selectedChurch.plan])}>
 											{selectedChurch?.plan}
 										</span>
-										<span
-											className={cn(
-												'px-2 py-0.5 rounded-full text-xs font-medium',
-												selectedChurch && statusBadgeClass[selectedChurch.status as keyof typeof statusBadgeClass]
-											)}>
-											{selectedChurch && statusLabel[selectedChurch.status as keyof typeof statusLabel]}
+										<span className={cn('px-2 py-0.5 rounded-full text-xs font-medium', selectedChurch && getStatusBadge(selectedChurch.subscriptionStatus))}>
+											{selectedChurch?.subscriptionStatus}
 										</span>
-										{selectedChurch?.isBlocked && <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">Blocked</span>}
 									</div>
 								</div>
 							</div>
@@ -587,107 +589,12 @@ export default function ChurchesPage() {
 								<MapPin className="h-4 w-4 text-gray-500" />
 								<Text
 									text="Location"
-									variant="blue"
 									className="font-medium text-sm"
 								/>
 							</div>
-							<div className="pl-6 space-y-1">
-								<Text
-									text={selectedChurch?.address || selectedChurch?.location || 'N/A'}
-									className="text-sm"
-								/>
+							<div className="pl-6">
 								<Text
 									text={selectedChurch?.location || 'N/A'}
-									variant="muted"
-									className="text-xs"
-								/>
-							</div>
-						</div>
-
-						{/* Contact Section */}
-						<div>
-							<div className="flex items-center gap-2 mb-2">
-								<Mail className="h-4 w-4 text-gray-500" />
-								<Text
-									text="Contact"
-									variant="blue"
-									className="font-medium text-sm"
-								/>
-							</div>
-							<div className="pl-6 space-y-1">
-								<Text
-									text={selectedChurch?.email || 'N/A'}
-									className="text-sm"
-								/>
-								<Text
-									text={selectedChurch?.phone || 'N/A'}
-									className="text-sm"
-								/>
-							</div>
-						</div>
-
-						{/* Super Admin Section */}
-						<div>
-							<div className="flex items-center gap-2 mb-2">
-								<UserCog className="h-4 w-4 text-gray-500" />
-								<Text
-									text="Super Administrator"
-									variant="blue"
-									className="font-medium text-sm"
-								/>
-							</div>
-							<div className="pl-6">
-								<div className="bg-gray-50 rounded-lg p-3 space-y-1">
-									<div className="flex items-center justify-between">
-										<Text
-											text="Name"
-											variant="muted"
-											className="text-xs"
-										/>
-										<Text
-											text={selectedChurch?.superAdmin.name || 'N/A'}
-											className="text-sm font-medium"
-										/>
-									</div>
-									<div className="flex items-center justify-between">
-										<Text
-											text="Email"
-											variant="muted"
-											className="text-xs"
-										/>
-										<Text
-											text={selectedChurch?.superAdmin.email || 'N/A'}
-											className="text-sm"
-										/>
-									</div>
-									<div className="flex items-center justify-between">
-										<Text
-											text="Phone"
-											variant="muted"
-											className="text-xs"
-										/>
-										<Text
-											text={selectedChurch?.superAdmin.phone || 'N/A'}
-											className="text-sm"
-										/>
-									</div>
-								</div>
-							</div>
-						</div>
-
-						{/* Leadership Section */}
-						<div>
-							<div className="flex items-center gap-2 mb-2">
-								<Users className="h-4 w-4 text-gray-500" />
-								<Text
-									text="Leadership"
-									variant="blue"
-									className="font-medium text-sm"
-								/>
-							</div>
-							<div className="pl-6">
-								<Text
-									text={`Pastor: ${selectedChurch?.pastor || 'N/A'}`}
 									className="text-sm"
 								/>
 							</div>
@@ -696,25 +603,13 @@ export default function ChurchesPage() {
 						{/* Church Stats */}
 						<div>
 							<div className="flex items-center gap-2 mb-2">
-								<Church className="h-4 w-4 text-gray-500" />
+								<ChurchIcon className="h-4 w-4 text-gray-500" />
 								<Text
 									text="Church Information"
-									variant="blue"
 									className="font-medium text-sm"
 								/>
 							</div>
 							<div className="pl-6 grid grid-cols-2 gap-3">
-								<div>
-									<Text
-										text="Founded"
-										variant="muted"
-										className="text-xs"
-									/>
-									<Text
-										text={selectedChurch?.founded || 'N/A'}
-										className="text-sm"
-									/>
-								</div>
 								<div>
 									<Text
 										text="Total Members"
@@ -722,8 +617,8 @@ export default function ChurchesPage() {
 										className="text-xs"
 									/>
 									<Text
-										text={selectedChurch?.members.toLocaleString() || '0'}
-										className="text-sm"
+										text={selectedChurch?.totalMembers?.toLocaleString() || '0'}
+										className="text-sm font-medium"
 									/>
 								</div>
 								<div>
@@ -733,30 +628,8 @@ export default function ChurchesPage() {
 										className="text-xs"
 									/>
 									<Text
-										text={selectedChurch?.userCount.toLocaleString() || '0'}
-										className="text-sm"
-									/>
-								</div>
-								<div>
-									<Text
-										text="Service Time"
-										variant="muted"
-										className="text-xs"
-									/>
-									<Text
-										text={selectedChurch?.serviceTime || 'N/A'}
-										className="text-sm"
-									/>
-								</div>
-								<div>
-									<Text
-										text="Plan Expires"
-										variant="muted"
-										className="text-xs"
-									/>
-									<Text
-										text={selectedChurch?.expires || 'N/A'}
-										className="text-sm"
+										text={selectedChurch?.totalUsers?.toLocaleString() || '0'}
+										className="text-sm font-medium"
 									/>
 								</div>
 							</div>
@@ -767,11 +640,11 @@ export default function ChurchesPage() {
 
 					<div className="flex justify-between gap-3">
 						<Button
-							variant={selectedChurch?.isBlocked ? 'default' : 'destructive'}
-							onClick={() => setIsBlockModalOpen(true)}
-							className="gap-2">
-							{selectedChurch?.isBlocked ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
-							{selectedChurch?.isBlocked ? 'Unblock Church' : 'Block Church'}
+							variant="outline"
+							className="gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+							onClick={() => setIsBlockModalOpen(true)}>
+							<Lock className="h-4 w-4" />
+							Block Church
 						</Button>
 						<div className="flex gap-3">
 							<Button
@@ -814,14 +687,13 @@ export default function ChurchesPage() {
 							</div>
 							<div className="text-right">
 								<Text
-									text="Expires"
+									text="Status"
 									variant="muted"
 									className="text-xs"
 								/>
-								<Text
-									text={selectedChurch?.expires || 'N/A'}
-									className="text-sm"
-								/>
+								<span className={cn('px-2 py-0.5 rounded-full text-xs font-medium', selectedChurch && getStatusBadge(selectedChurch.subscriptionStatus))}>
+									{selectedChurch?.subscriptionStatus}
+								</span>
 							</div>
 						</div>
 
@@ -831,7 +703,7 @@ export default function ChurchesPage() {
 								text="Change Plan"
 								className="text-sm font-medium mb-2"
 							/>
-							<div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+							<div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
 								{planOptions.map((plan) => (
 									<div
 										key={plan.id}
@@ -860,16 +732,18 @@ export default function ChurchesPage() {
 									value={couponCode}
 									onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
 									className="flex-1"
+									disabled={isSubmitting}
 								/>
 								<Button
 									variant="outline"
-									onClick={handleApplyCoupon}>
+									onClick={handleApplyCoupon}
+									disabled={isSubmitting}>
 									Apply
 								</Button>
 							</div>
 							{discountApplied && (
 								<div className="mt-2 p-2 bg-green-50 rounded-lg text-sm text-green-700">
-									✓ Discount applied! {discountApplied.type === 'percentage' ? `${discountApplied.value}% off` : 'First month free'}
+									✓ Discount applied! {discountApplied.type === 'percentage' ? `${discountApplied.value}% off` : `₦${discountApplied.value.toLocaleString()} off`}
 								</div>
 							)}
 						</div>
@@ -883,55 +757,41 @@ export default function ChurchesPage() {
 						</Button>
 						<Button
 							onClick={handlePlanChange}
-							disabled={!selectedPlan || selectedPlan === selectedChurch?.plan}>
-							Confirm Change
+							disabled={!selectedPlan || selectedPlan === selectedChurch?.plan || isSubmitting}>
+							{isSubmitting ? 'Updating...' : 'Confirm Change'}
 						</Button>
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
 
-			{/* Block/Unblock Confirmation Dialog */}
+			{/* Block Confirmation Dialog */}
 			<AlertDialog
 				open={isBlockModalOpen}
 				onOpenChange={setIsBlockModalOpen}>
 				<AlertDialogContent>
 					<AlertDialogHeader>
 						<AlertDialogTitle className="flex items-center gap-2">
-							{selectedChurch?.isBlocked ? <Unlock className="h-5 w-5 text-green-600" /> : <Lock className="h-5 w-5 text-red-600" />}
-							{selectedChurch?.isBlocked ? 'Unblock Church' : 'Block Church'}
+							<Lock className="h-5 w-5 text-red-600" />
+							Block Church
 						</AlertDialogTitle>
 						<AlertDialogDescription>
-							{selectedChurch?.isBlocked ? (
-								<>
-									Are you sure you want to unblock <span className="font-semibold">{selectedChurch?.name}</span>?
-									<br />
-									<br />
-									<span className="text-green-600">✓</span> The church will regain full access to all platform features.
-									<br />
-									<span className="text-green-600">✓</span> All administrators will be able to log in.
-									<br />
-									<span className="text-green-600">✓</span> Subscription billing will resume normally.
-								</>
-							) : (
-								<>
-									Are you sure you want to block <span className="font-semibold">{selectedChurch?.name}</span>?
-									<br />
-									<br />
-									<span className="text-red-600">⚠</span> The church will lose access to all platform features.
-									<br />
-									<span className="text-red-600">⚠</span> All administrators will be unable to log in.
-									<br />
-									<span className="text-red-600">⚠</span> Subscription billing will be paused.
-								</>
-							)}
+							Are you sure you want to block <span className="font-semibold">{selectedChurch?.name}</span>?
+							<br />
+							<br />
+							<span className="text-red-600">⚠</span> The church will lose access to all platform features.
+							<br />
+							<span className="text-red-600">⚠</span> All administrators will be unable to log in.
+							<br />
+							<span className="text-red-600">⚠</span> Subscription billing will be paused.
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
-						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogCancel disabled={isSubmitting}>Cancel</AlertDialogCancel>
 						<AlertDialogAction
 							onClick={handleToggleBlock}
-							className={selectedChurch?.isBlocked ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}>
-							{selectedChurch?.isBlocked ? 'Yes, Unblock Church' : 'Yes, Block Church'}
+							className="bg-red-600 hover:bg-red-700"
+							disabled={isSubmitting}>
+							{isSubmitting ? 'Processing...' : 'Yes, Block Church'}
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>
