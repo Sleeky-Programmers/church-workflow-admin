@@ -59,6 +59,7 @@ export async function authenticatedFetch<T>(endpoint: string, options: RequestIn
 			}
 			return retryResponse.json();
 		} catch (err) {
+			console.log(err);
 			localStorage.removeItem('accessToken');
 			localStorage.removeItem('refreshToken');
 
@@ -228,7 +229,7 @@ export async function createChurch(payload: CreateChurchPayload, logoFile?: File
 }
 
 export async function getMyChurch() {
-	return await authenticatedFetch<any>('/church/me', {
+	return await authenticatedFetch<any>('/church/admin/me', {
 		method: 'GET',
 	});
 }
@@ -428,7 +429,7 @@ export async function refreshAuthToken() {
 		throw new Error('No refresh token');
 	}
 
-	const response = await fetch(`${BASE_URL}/auth/refresh-token`, {
+	const response = await fetch(`${BASE_URL}/product-admin/refresh-token`, {
 		method: 'POST',
 		headers: {
 			'Content-Type': 'application/json',
