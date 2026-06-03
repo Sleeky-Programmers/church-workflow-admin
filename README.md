@@ -1,4 +1,4 @@
-# Church On Cloud
+# Church On Cloud 
 
 > Church On Cloud is a modern Next.js application designed to bring all Church workflow processes into an administrative system. 
 
