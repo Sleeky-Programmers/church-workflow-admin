@@ -6,7 +6,6 @@ import { ReactNode, useEffect, useState } from 'react';
 import { Loader } from '@/components/ui/loader';
 import { Text } from '@/components/ui/typography/Text';
 import { RouteConfig } from '@/config/routes';
-import { getMyChurch } from '@/lib/api';
 import { getAccessToken } from '@/lib/auth/session';
 
 type DashboardGuardProps = {
@@ -20,22 +19,12 @@ export function DashboardGuard({ children }: DashboardGuardProps) {
 	useEffect(() => {
 		const checkAccess = async () => {
 			const token = getAccessToken();
-			console.log(token);
 			if (!token) {
 				router.replace(RouteConfig.auth.signIn);
 				return;
 			}
 
-			try {
-				const church = await getMyChurch();
-				if (!church) {
-					router.replace(RouteConfig.onboarding);
-					return;
-				}
-				setIsChecking(false);
-			} catch (error) {
-				router.replace(RouteConfig.auth.signIn);
-			}
+			setIsChecking(false);
 		};
 
 		checkAccess();

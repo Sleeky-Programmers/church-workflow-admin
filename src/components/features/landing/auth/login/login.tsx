@@ -37,20 +37,27 @@ export default function LoginForm({ onForgotPassword }: LoginFormProps) {
 		setIsLoading(true);
 		try {
 			const data = await login(values);
-			const profile = initializeAuthSession({
-				accessToken: data.accessToken,
-				refreshToken: data.refreshToken,
-				emailHint: values.email,
-				user: data.user,
-			});
+			if (data.accessToken.length > 2 && data.refreshToken && data.refreshToken.length > 2) {
+				const profile = initializeAuthSession({
+					accessToken: data.accessToken,
+					refreshToken: data.refreshToken,
+					emailHint: values.email,
+					user: data.user,
+				});
 
-			setUser({
-				id: profile.id || profile.userKey,
-				name: profile.fullName || profile.firstName || 'Super Admin',
-				email: profile.email || values.email,
-			});
+				setUser({
+					id: profile.id || profile.userKey,
+					name: profile.fullName || profile.firstName || 'Super Admin',
+					email: profile.email || values.email,
+				});
 
-			router.push(RouteConfig.dashboard.home);
+				router.push(RouteConfig.dashboard.home);
+			} else {
+				form.setError('root', {
+					type: 'manual',
+					message: 'An internal server error occurred. Please try again later.',
+				});
+			}
 		} catch (error: any) {
 			const status = error?.response?.status;
 			const message = String(error?.message || '');
