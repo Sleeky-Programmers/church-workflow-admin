@@ -11,6 +11,7 @@ export interface OverviewMetrics {
 		GROWTH: number;
 		STARTER: number;
 	};
+	attendanceTrend: { month: string; thisMonth: number; lastMonth: number }[];
 }
 
 export interface OverviewResponse {
@@ -21,9 +22,9 @@ export interface OverviewResponse {
 export async function fetchOverview(params?: { from?: string; to?: string }): Promise<OverviewMetrics> {
 	const query = params?.from || params?.to ? `?${new URLSearchParams(params as Record<string, string>).toString()}` : '';
 
-	const response = await authenticatedFetch<OverviewResponse>(`/analytics/overview${query}`, {
+	const response = await authenticatedFetch<OverviewMetrics>(`/analytics/overview${query}`, {
 		method: 'GET',
 	});
 
-	return response.data;
+	return response;
 }

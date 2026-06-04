@@ -6,6 +6,8 @@ import {
 	ArrowLeftRight,
 	Banknote,
 	CheckCircle,
+	ChevronLeft,
+	ChevronRight,
 	Clock,
 	CreditCard,
 	Download,
@@ -84,13 +86,23 @@ export default function PaymentsPage() {
 	const [refundReason, setRefundReason] = useState('');
 	const [refundAmount, setRefundAmount] = useState('');
 
-	// State for real data
+	// State for real data - decoupled
 	const [payments, setPayments] = useState<Payment[]>([]);
 	const [paymentStats, setPaymentStats] = useState<PaymentStats | null>(null);
 	const [churches, setChurches] = useState<Church[]>([]);
-	const [loading, setLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
+
+	// Decoupled loading states
+	const [tableLoading, setTableLoading] = useState(true);
+	const [statsLoading, setStatsLoading] = useState(true);
+	const [tableError, setTableError] = useState<string | null>(null);
+	const [statsError, setStatsError] = useState<string | null>(null);
 	const [isSubmitting, setIsSubmitting] = useState(false);
+
+	// Pagination state
+	const [currentPage, setCurrentPage] = useState(1);
+	const [itemsPerPage, setItemsPerPage] = useState(10);
+	const [totalItems, setTotalItems] = useState(0);
+	const [paginationData, setPaginationData] = useState<any>(null);
 
 	// Manual payment form state
 	const [manualPaymentForm, setManualPaymentForm] = useState({
@@ -99,15 +111,24 @@ export default function PaymentsPage() {
 		notes: '',
 	});
 
-	// Fetch data on load and when filters change
+	// Fetch table data when filters change
 	useEffect(() => {
 		fetchPaymentsData();
+	}, [planFilter, statusFilter, churchFilter, dateRange, currentPage, itemsPerPage]);
+
+	// Fetch stats independently when date range changes
+	useEffect(() => {
+		fetchStatsData();
+	}, [dateRange]);
+
+	// Fetch churches on mount
+	useEffect(() => {
 		fetchChurchesData();
-	}, [planFilter, statusFilter, churchFilter, dateRange]);
+	}, []);
 
 	const fetchPaymentsData = async () => {
-		setLoading(true);
-		setError(null);
+		setTableLoading(true);
+		setTableError(null);
 		try {
 			// Calculate date range filter
 			let fromDate: string | undefined;
@@ -122,27 +143,46 @@ export default function PaymentsPage() {
 				}
 			}
 
-			const [paymentsData, statsData] = await Promise.all([
-				fetchPayments({
-					limit: 100,
-					status: statusFilter !== 'all' ? (statusFilter as PaymentStatus) : undefined,
-					plan: planFilter !== 'all' ? (planFilter as PlanType) : undefined,
-					from: fromDate,
-				}),
-				fetchPaymentStats(dateRange !== 'all' ? (dateRange as any) : undefined),
-			]);
+			const paymentsData = await fetchPayments({
+				limit: itemsPerPage,
+				page: currentPage,
+				status: statusFilter !== 'all' ? (statusFilter as PaymentStatus) : undefined,
+				plan: planFilter !== 'all' ? (planFilter as PlanType) : undefined,
+				from: fromDate,
+			});
+
 			setPayments(paymentsData.data);
-			setPaymentStats(statsData);
+			setTotalItems(paymentsData.pagination?.itemCount || paymentsData.data.length);
+			setPaginationData(paymentsData.pagination);
 		} catch (err) {
 			console.error('Failed to fetch payments:', err);
-			setError(err instanceof Error ? err.message : 'Failed to load payments');
+			setTableError(err instanceof Error ? err.message : 'Failed to load payments');
 			toast({
 				title: 'Error',
 				description: 'Failed to load payment data',
 				variant: 'destructive',
 			});
 		} finally {
-			setLoading(false);
+			setTableLoading(false);
+		}
+	};
+
+	const fetchStatsData = async () => {
+		setStatsLoading(true);
+		setStatsError(null);
+		try {
+			const statsData = await fetchPaymentStats(dateRange !== 'all' ? (dateRange as any) : undefined);
+			setPaymentStats(statsData);
+		} catch (err) {
+			console.error('Failed to fetch payment stats:', err);
+			setStatsError(err instanceof Error ? err.message : 'Failed to load stats');
+			toast({
+				title: 'Error',
+				description: 'Failed to load payment statistics',
+				variant: 'destructive',
+			});
+		} finally {
+			setStatsLoading(false);
 		}
 	};
 
@@ -155,7 +195,7 @@ export default function PaymentsPage() {
 		}
 	};
 
-	// Filter transactions locally for search
+	// Filter transactions locally for search and church filter
 	const filteredPayments = payments.filter((payment) => {
 		const matchesSearch =
 			!searchQuery ||
@@ -177,7 +217,6 @@ export default function PaymentsPage() {
 	const totalRevenue = paymentStats?.totalRevenue || 0;
 	const pendingAmount = paymentStats?.pendingAmount || 0;
 	const pendingCount = paymentStats?.pendingCount || 0;
-	const successCount = 0; //paymentStats?.totalCount - paymentStats?.pendingCount - (paymentStats?.failedCount || 0) || 0;
 	const failedCount = paymentStats?.failedCount || 0;
 	const successRate = paymentStats?.successRate || '0%';
 	const totalCount = paymentStats?.totalCount || 0;
@@ -197,7 +236,8 @@ export default function PaymentsPage() {
 			setIsRefundModalOpen(false);
 			setRefundReason('');
 			setRefundAmount('');
-			fetchPaymentsData(); // Refresh data
+			fetchPaymentsData(); // Refresh table data
+			fetchStatsData(); // Refresh stats
 		} catch (err) {
 			console.error('Failed to process refund:', err);
 			toast({
@@ -245,45 +285,100 @@ export default function PaymentsPage() {
 		return colors[index];
 	};
 
-	if (loading) {
-		return (
-			<div className="space-y-6">
-				<div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-					<div className="h-10 w-48 bg-gray-200 rounded animate-pulse" />
-					<div className="flex gap-2">
-						{/* <div className="h-10 w-32 bg-gray-200 rounded animate-pulse" /> */}
-						<div className="h-10 w-20 bg-gray-200 rounded animate-pulse" />
-					</div>
-				</div>
-				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-					{[1, 2, 3, 4].map((i) => (
-						<div
-							key={i}
-							className="h-32 bg-gray-100 rounded-2xl animate-pulse"
-						/>
-					))}
-				</div>
-				<div className="h-20 bg-gray-100 rounded-2xl animate-pulse" />
-				<div className="h-96 bg-gray-100 rounded-2xl animate-pulse" />
-			</div>
-		);
-	}
+	// Pagination handlers
+	const handlePageChange = (page: number) => {
+		setCurrentPage(page);
+	};
 
-	if (error && payments.length === 0) {
-		return (
-			<div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
-				<div className="text-red-600 text-center">
-					<p className="font-semibold">Failed to load payments</p>
-					<p className="text-sm mt-1">{error}</p>
+	const handleItemsPerPageChange = (value: string) => {
+		setItemsPerPage(parseInt(value));
+		setCurrentPage(1); // Reset to first page when changing items per page
+	};
+
+	const totalPages = paginationData?.totalPages || Math.ceil(totalItems / itemsPerPage);
+
+	// Stats Card Skeleton
+	const StatsSkeleton = () => (
+		<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+			{[1, 2, 3, 4].map((i) => (
+				<Card
+					key={i}
+					className="rounded-2xl">
+					<CardContent className="pt-6">
+						<div className="flex items-center justify-between">
+							<div className="space-y-2">
+								<div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+								<div className="h-8 w-32 bg-gray-200 rounded animate-pulse" />
+							</div>
+							<div className="w-10 h-10 rounded-full bg-gray-200 animate-pulse" />
+						</div>
+						<div className="h-3 w-40 bg-gray-200 rounded animate-pulse mt-2" />
+					</CardContent>
+				</Card>
+			))}
+		</div>
+	);
+
+	// Table Skeleton
+	const TableSkeleton = () => (
+		<Card className="rounded-2xl">
+			<CardContent className="p-0">
+				<div
+					className="overflow-x-auto"
+					style={{ height: '80dvh', overflowY: 'auto' }}>
+					<table className="w-full text-sm">
+						<thead className="sticky top-0 z-10 bg-white shadow-sm">
+							<tr className="border-b border-gray-200">
+								<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Transaction</th>
+								<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Church</th>
+								<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Plan</th>
+								<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Amount</th>
+								<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Status</th>
+								<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Date</th>
+								<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Reference</th>
+								<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Actions</th>
+							</tr>
+						</thead>
+						<tbody>
+							{[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
+								<tr
+									key={i}
+									className="border-b">
+									<td className="py-3 px-4">
+										<div className="h-4 w-32 bg-gray-200 rounded animate-pulse" />
+									</td>
+									<td className="py-3 px-4">
+										<div className="flex items-center gap-3">
+											<div className="h-8 w-8 rounded-full bg-gray-200 animate-pulse" />
+											<div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+										</div>
+									</td>
+									<td className="py-3 px-4">
+										<div className="h-4 w-16 bg-gray-200 rounded animate-pulse" />
+									</td>
+									<td className="py-3 px-4">
+										<div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
+									</td>
+									<td className="py-3 px-4">
+										<div className="h-6 w-20 bg-gray-200 rounded-full animate-pulse" />
+									</td>
+									<td className="py-3 px-4">
+										<div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+									</td>
+									<td className="py-3 px-4">
+										<div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
+									</td>
+									<td className="py-3 px-4">
+										<div className="h-4 w-16 bg-gray-200 rounded animate-pulse" />
+									</td>
+								</tr>
+							))}
+						</tbody>
+					</table>
 				</div>
-				<Button
-					onClick={fetchPaymentsData}
-					variant="outline">
-					Try Again
-				</Button>
-			</div>
-		);
-	}
+			</CardContent>
+		</Card>
+	);
 
 	return (
 		<>
@@ -300,139 +395,156 @@ export default function PaymentsPage() {
 					/>
 				</div>
 				<div className="flex gap-2">
-					{/* <Button
-						onClick={() => setIsManualPaymentModalOpen(true)}
-						className="gap-2">
-						<Plus className="h-4 w-4" />
-						Record Manual Payment
-					</Button> */}
 					<Button
 						variant="outline"
 						size="sm"
 						className="gap-2"
-						onClick={fetchPaymentsData}>
+						onClick={() => {
+							fetchPaymentsData();
+							fetchStatsData();
+						}}>
 						<RefreshCw className="h-4 w-4" />
 						Refresh
 					</Button>
 				</div>
 			</div>
 
-			{/* Stats Cards - From Real API */}
-			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-				<Card className="rounded-2xl">
-					<CardContent className="pt-6">
-						<div className="flex items-center justify-between">
-							<div>
-								<Text
-									text="Total Revenue"
-									variant="muted"
-									className="text-sm"
-								/>
-								<Heading
-									level={2}
-									text={formatAmount(totalRevenue)}
-									className="text-2xl font-semibold mt-1"
-								/>
-							</div>
-							<div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-								<Receipt className="w-5 h-5 text-green-600" />
-							</div>
+			{/* Stats Cards - Independent Loading */}
+			{statsLoading ? (
+				<StatsSkeleton />
+			) : statsError ? (
+				<Card className="rounded-2xl mb-6">
+					<CardContent className="py-8">
+						<div className="text-center text-red-600">
+							<p className="font-semibold">Failed to load statistics</p>
+							<p className="text-sm mt-1">{statsError}</p>
+							<Button
+								onClick={fetchStatsData}
+								variant="outline"
+								size="sm"
+								className="mt-3">
+								Retry
+							</Button>
 						</div>
-						<Text
-							text={`From ${successCount} successful transactions`}
-							variant="muted"
-							className="text-xs mt-2"
-						/>
 					</CardContent>
 				</Card>
+			) : (
+				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+					<Card className="rounded-2xl">
+						<CardContent className="pt-6">
+							<div className="flex items-center justify-between">
+								<div>
+									<Text
+										text="Total Revenue"
+										variant="muted"
+										className="text-sm"
+									/>
+									<Heading
+										level={2}
+										text={formatAmount(totalRevenue)}
+										className="text-2xl font-semibold mt-1"
+									/>
+								</div>
+								<div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+									<Receipt className="w-5 h-5 text-green-600" />
+								</div>
+							</div>
+							<Text
+								text={`From all successful transactions`}
+								variant="muted"
+								className="text-xs mt-2"
+							/>
+						</CardContent>
+					</Card>
 
-				<Card className="rounded-2xl">
-					<CardContent className="pt-6">
-						<div className="flex items-center justify-between">
-							<div>
-								<Text
-									text="Pending Payments"
-									variant="muted"
-									className="text-sm"
-								/>
-								<Heading
-									level={2}
-									text={formatAmount(pendingAmount)}
-									className="text-2xl font-semibold mt-1"
-								/>
+					<Card className="rounded-2xl">
+						<CardContent className="pt-6">
+							<div className="flex items-center justify-between">
+								<div>
+									<Text
+										text="Pending Payments"
+										variant="muted"
+										className="text-sm"
+									/>
+									<Heading
+										level={2}
+										text={formatAmount(pendingAmount)}
+										className="text-2xl font-semibold mt-1"
+									/>
+								</div>
+								<div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+									<Clock className="w-5 h-5 text-amber-600" />
+								</div>
 							</div>
-							<div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
-								<Clock className="w-5 h-5 text-amber-600" />
-							</div>
-						</div>
-						<Text
-							text={`${pendingCount} transaction${pendingCount !== 1 ? 's' : ''} awaiting confirmation`}
-							variant="muted"
-							className="text-xs mt-2"
-						/>
-					</CardContent>
-				</Card>
+							<Text
+								text={`${pendingCount} transaction${pendingCount !== 1 ? 's' : ''} awaiting confirmation`}
+								variant="muted"
+								className="text-xs mt-2"
+							/>
+						</CardContent>
+					</Card>
 
-				<Card className="rounded-2xl">
-					<CardContent className="pt-6">
-						<div className="flex items-center justify-between">
-							<div>
-								<Text
-									text="Success Rate"
-									variant="muted"
-									className="text-sm"
-								/>
-								<Heading
-									level={2}
-									text={successRate}
-									className="text-2xl font-semibold mt-1"
-								/>
+					<Card className="rounded-2xl">
+						<CardContent className="pt-6">
+							<div className="flex items-center justify-between">
+								<div>
+									<Text
+										text="Success Rate"
+										variant="muted"
+										className="text-sm"
+									/>
+									<Heading
+										level={2}
+										text={successRate}
+										className="text-2xl font-semibold mt-1"
+									/>
+								</div>
+								<div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+									<CheckCircle className="w-5 h-5 text-blue-600" />
+								</div>
 							</div>
-							<div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-								<CheckCircle className="w-5 h-5 text-blue-600" />
-							</div>
-						</div>
-						<Text
-							text={`${failedCount} failed transactions`}
-							variant="muted"
-							className="text-xs mt-2"
-						/>
-					</CardContent>
-				</Card>
+							<Text
+								text={`${failedCount} failed transactions`}
+								variant="muted"
+								className="text-xs mt-2"
+							/>
+						</CardContent>
+					</Card>
 
-				<Card className="rounded-2xl">
-					<CardContent className="pt-6">
-						<div className="flex items-center justify-between">
-							<div>
-								<Text
-									text="Total Transactions"
-									variant="muted"
-									className="text-sm"
-								/>
-								<Heading
-									level={2}
-									text={totalCount.toString()}
-									className="text-2xl font-semibold mt-1"
-								/>
+					<Card className="rounded-2xl">
+						<CardContent className="pt-6">
+							<div className="flex items-center justify-between">
+								<div>
+									<Text
+										text="Total Transactions"
+										variant="muted"
+										className="text-sm"
+									/>
+									<Heading
+										level={2}
+										text={totalCount.toString()}
+										className="text-2xl font-semibold mt-1"
+									/>
+								</div>
+								<div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
+									<CreditCard className="w-5 h-5 text-purple-600" />
+								</div>
 							</div>
-							<div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
-								<CreditCard className="w-5 h-5 text-purple-600" />
-							</div>
-						</div>
-						<Text
-							text="All time transactions"
-							variant="muted"
-							className="text-xs mt-2"
-						/>
-					</CardContent>
-				</Card>
-			</div>
+							<Text
+								text="All time transactions"
+								variant="muted"
+								className="text-xs mt-2"
+							/>
+						</CardContent>
+					</Card>
+				</div>
+			)}
 
 			{/* Filters */}
 			<Card className="rounded-2xl mb-6">
 				<CardContent className="p-4">
-					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
-						<div className="relative md:col-span-2 flex-1">
+					<div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+						<div className="relative col-span-2 md:col-span-4 lg:col-span-1 flex-1">
 							<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
 							<Input
 								placeholder="Search by church, transaction ID, or reference..."
@@ -525,51 +637,89 @@ export default function PaymentsPage() {
 				</CardContent>
 			</Card>
 
-			{/* Transactions Table */}
-			<Card className="rounded-2xl">
-				<CardContent className="p-0">
-					<div
-						className="overflow-x-auto"
-						style={{ maxHeight: '500px', overflowY: 'auto' }}>
-						<table className="w-full text-sm">
-							<thead className="sticky top-0 z-10 backdrop-blur-sm bg-white/95 shadow-sm">
-								<tr className="border-b border-gray-200">
-									<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Transaction</th>
-									<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Church</th>
-									<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Plan</th>
-									<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Amount</th>
-									<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Status</th>
-									<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Date</th>
-									<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Reference</th>
-									<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Actions</th>
-								</tr>
-							</thead>
-							<tbody>
-								{filteredPayments.map((payment) => {
-									const StatusIcon = statusConfig[payment.status]?.icon || CheckCircle;
-									const statusInfo = statusConfig[payment.status] || statusConfig.SUCCESS;
-									const avatarColor = getAvatarColor(payment.churchName);
+			{/* Transactions Table - Independent Loading */}
+			{tableLoading ? (
+				<TableSkeleton />
+			) : tableError ? (
+				<Card className="rounded-2xl">
+					<CardContent className="py-12">
+						<div className="text-center text-red-600">
+							<p className="font-semibold">Failed to load transactions</p>
+							<p className="text-sm mt-1">{tableError}</p>
+							<Button
+								onClick={fetchPaymentsData}
+								variant="outline"
+								size="sm"
+								className="mt-3">
+								Retry
+							</Button>
+						</div>
+					</CardContent>
+				</Card>
+			) : (
+				<Card className="rounded-2xl">
+					<CardContent className="p-0">
+						<div
+							className="overflow-x-auto"
+							style={{ height: '80dvh', overflowY: 'auto' }}>
+							<table className="w-full text-sm">
+								<thead className="sticky top-0 z-10 bg-white shadow-sm">
+									<tr className="border-b border-gray-200">
+										<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Transaction</th>
+										<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Church</th>
+										<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Plan</th>
+										<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Amount</th>
+										<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Status</th>
+										<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Date</th>
+										<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Reference</th>
+										<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Actions</th>
+									</tr>
+								</thead>
+								<tbody>
+									{filteredPayments.map((payment) => {
+										const StatusIcon = statusConfig[payment.status]?.icon || CheckCircle;
+										const statusInfo = statusConfig[payment.status] || statusConfig.SUCCESS;
+										const avatarColor = getAvatarColor(payment.churchName);
 
-									return (
-										<tr
-											key={payment._id}
-											className="border-b last:border-0 hover:bg-gray-50">
-											<td className="py-3 px-4">
-												<div>
-													<div className="font-mono text-xs font-medium">{payment.transactionId}</div>
-												</div>
-											</td>
-											<td className="py-3 px-4">
-												<div className="flex items-center gap-3">
-													<Avatar className="h-8 w-8">
-														<AvatarFallback className={cn(avatarColor.bg, avatarColor.text)}>{getInitials(payment.churchName)}</AvatarFallback>
-													</Avatar>
+										return (
+											<tr
+												key={payment._id}
+												className="border-b last:border-0 hover:bg-gray-50">
+												<td className="py-3 px-4">
 													<div>
-														<span className="font-medium">{payment.churchName}</span>
+														<div className="font-mono text-xs font-medium">{payment.transactionId}</div>
+													</div>
+												</td>
+												<td className="py-3 px-4">
+													<div className="flex items-center gap-3">
+														<Avatar className="h-8 w-8">
+															<AvatarFallback className={cn(avatarColor.bg, avatarColor.text)}>{getInitials(payment.churchName)}</AvatarFallback>
+														</Avatar>
+														<div>
+															<span className="font-medium">{payment.churchName}</span>
+														</div>
+													</div>
+												</td>
+												<td className="py-3 px-4">
+													<span className="text-sm">{payment.plan}</span>
+												</td>
+												<td className="py-3 px-4 font-semibold">{payment.amount === 0 ? 'Free' : formatAmount(payment.amount)}</td>
+												<td className="py-3 px-4">
+													<span className={cn('inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium', statusInfo.class)}>
+														<StatusIcon className="h-3 w-3" />
+														{statusInfo.label}
+													</span>
+												</td>
+												<td className="py-3 px-4 text-gray-500 text-xs">{formatDate(payment.date)}</td>
+												<td className="py-3 px-4">
+													<span className="font-mono text-xs text-gray-500">{payment.reference}</span>
+												</td>
+												<td className="py-3 px-4">
+													<div className="flex gap-2">
 														<Button
 															variant="link"
 															size="sm"
-															className="h-auto p-0 ml-2 text-xs text-primary-600"
+															className="h-auto p-0 text-xs text-primary-600"
 															onClick={() => {
 																const church = churches.find((c) => c.name === payment.churchName);
 																if (church) handleViewPaymentLogs(church);
@@ -577,62 +727,110 @@ export default function PaymentsPage() {
 															View logs
 														</Button>
 													</div>
-												</div>
-											</td>
-											<td className="py-3 px-4">
-												<span className="text-sm">{payment.plan}</span>
-											</td>
-											<td className="py-3 px-4 font-semibold">{payment.amount === 0 ? 'Free' : formatAmount(payment.amount)}</td>
-											<td className="py-3 px-4">
-												<span className={cn('inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium', statusInfo.class)}>
-													<StatusIcon className="h-3 w-3" />
-													{statusInfo.label}
-												</span>
-											</td>
-											<td className="py-3 px-4 text-gray-500 text-xs">{formatDate(payment.date)}</td>
-											<td className="py-3 px-4">
-												<span className="font-mono text-xs text-gray-500">{payment.reference}</span>
-											</td>
-											<td className="py-3 px-4">
-												<div className="flex gap-2">
-													{payment.status === 'FAILED' && (
-														<Button
-															variant="ghost"
-															size="sm"
-															className="h-7 text-xs"
-															onClick={() => {
-																setSelectedPayment(payment);
-																setIsRefundModalOpen(true);
-															}}>
-															Refund
-														</Button>
-													)}
-												</div>
-											</td>
-										</tr>
-									);
-								})}
-							</tbody>
-						</table>
-					</div>
-
-					{filteredPayments.length === 0 && !loading && (
-						<div className="text-center py-12">
-							<Receipt className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-							<Text
-								text="No transactions found"
-								className="text-gray-500"
-							/>
-							<Text
-								text="Try adjusting your filters"
-								variant="muted"
-								className="text-sm"
-							/>
+												</td>
+											</tr>
+										);
+									})}
+								</tbody>
+							</table>
 						</div>
-					)}
-				</CardContent>
-			</Card>
 
+						{filteredPayments.length === 0 && !tableLoading && (
+							<div className="text-center py-12">
+								<Receipt className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+								<Text
+									text="No transactions found"
+									className="text-gray-500"
+								/>
+								<Text
+									text="Try adjusting your filters"
+									variant="muted"
+									className="text-sm"
+								/>
+							</div>
+						)}
+
+						{/* Pagination Component */}
+						{totalItems > 0 && (
+							<div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 bg-gray-50">
+								<div className="flex items-center gap-2">
+									<span className="text-sm text-gray-600">Rows per page:</span>
+									<Select
+										value={itemsPerPage.toString()}
+										onValueChange={handleItemsPerPageChange}>
+										<SelectTrigger className="w-20 h-8">
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent>
+											{[5, 10, 20, 50, 100].map((size) => (
+												<SelectItem
+													key={size}
+													value={size.toString()}>
+													{size}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								</div>
+
+								<div className="text-sm text-gray-600">
+									Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} results
+								</div>
+
+								<div className="flex items-center gap-2">
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={() => handlePageChange(currentPage - 1)}
+										disabled={currentPage === 1}
+										className="h-8 px-2">
+										<ChevronLeft className="h-4 w-4" />
+										Previous
+									</Button>
+
+									<div className="flex gap-1">
+										{Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+											let pageNum;
+											if (totalPages <= 5) {
+												pageNum = i + 1;
+											} else if (currentPage <= 3) {
+												pageNum = i + 1;
+											} else if (currentPage >= totalPages - 2) {
+												pageNum = totalPages - 4 + i;
+											} else {
+												pageNum = currentPage - 2 + i;
+											}
+
+											return (
+												<Button
+													key={pageNum}
+													variant={currentPage === pageNum ? 'default' : 'outline'}
+													size="sm"
+													onClick={() => handlePageChange(pageNum)}
+													className="h-8 w-8 p-0">
+													{pageNum}
+												</Button>
+											);
+										})}
+									</div>
+
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={() => handlePageChange(currentPage + 1)}
+										disabled={currentPage === totalPages}
+										className="h-8 px-2">
+										Next
+										<ChevronRight className="h-4 w-4" />
+									</Button>
+								</div>
+							</div>
+						)}
+					</CardContent>
+				</Card>
+			)}
+
+			{/* Modals remain the same */}
 			{/* Record Manual Payment Modal */}
 			<Dialog
 				open={isManualPaymentModalOpen}
@@ -724,13 +922,13 @@ export default function PaymentsPage() {
 				onOpenChange={setIsPaymentLogsModalOpen}>
 				<DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
 					<DialogHeader>
-						<DialogTitle className="flex items-center gap-3">
+						<DialogTitle className="flex flex-col gap-3">
 							<div className="text-xl">Payment Logs - {selectedChurchForLogs?.name}</div>
 							<DialogDescription>Complete payment history for this church</DialogDescription>
 						</DialogTitle>
 					</DialogHeader>
 
-					<Separator />
+					<Separator className="my-5" />
 
 					{selectedChurchForLogs && (
 						<div className="space-y-4">
@@ -817,7 +1015,7 @@ export default function PaymentsPage() {
 						</div>
 					)}
 
-					<DialogFooter>
+					<DialogFooter className="mt-5">
 						<Button
 							variant="outline"
 							onClick={() => setIsPaymentLogsModalOpen(false)}>
