@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 
 import { StatCard } from '@/components/features/dashboard/StatCard';
+import { TrendChart } from '@/components/features/dashboard/trend-chart';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Heading from '@/components/ui/typography/Heading';
@@ -25,6 +26,22 @@ interface Activity {
 	color: string;
 }
 
+// Plan color mapping
+const PLAN_COLORS: Record<string, string> = {
+	GROWTH: 'bg-blue-500',
+	STARTER: 'bg-amber-500',
+	EXPANSION: 'bg-purple-500',
+	ENTERPRISE: 'bg-emerald-500',
+};
+
+// Plan display names
+const PLAN_DISPLAY_NAMES: Record<string, string> = {
+	GROWTH: 'Growth Plan',
+	STARTER: 'Starter Plan',
+	EXPANSION: 'Expansion Plan',
+	ENTERPRISE: 'Enterprise Plan',
+};
+
 export default function OverviewDashboard() {
 	const [displayName, setDisplayName] = useState('Admin');
 	const [loading, setLoading] = useState(true);
@@ -35,6 +52,14 @@ export default function OverviewDashboard() {
 	const [couponStats, setCouponStats] = useState<CouponStats | null>(null);
 	const [planDistribution, setPlanDistribution] = useState<PlanDistribution[]>([]);
 	const [activities, setActivities] = useState<Activity[]>([]);
+	const [attendanceTrendData, setAttendanceTrendData] = useState<{ month: string; thisMonth: number; lastMonth: number }[]>([]);
+	const [incomeTrendData, setIncomeTrendData] = useState<{ month: string; thisMonth: number; lastMonth: number }[]>([]);
+
+	// Decoupled loading states for better UX
+	const [statsLoading, setStatsLoading] = useState(true);
+	const [trendLoading, setTrendLoading] = useState(true);
+	const [distributionLoading, setDistributionLoading] = useState(true);
+	const [activitiesLoading, setActivitiesLoading] = useState(true);
 
 	useEffect(() => {
 		const profile = getCurrentUserProfile();
@@ -48,24 +73,45 @@ export default function OverviewDashboard() {
 			setError(null);
 
 			try {
-				// Fetch all data in parallel for speed
-				const [overview, couponStatsData] = await Promise.all([fetchOverview(), fetchCouponStats()]);
-
+				// Fetch overview data
+				const overview = await fetchOverview();
 				setOverviewData(overview);
-				setCouponStats(couponStatsData);
 
-				// Transform plan distribution from real data
+				// Set individual loading states
+				setStatsLoading(false);
+
+				// Transform plan distribution
 				if (overview && overview.churchesByPlan) {
 					const distribution = transformToPlanDistribution(overview);
 					setPlanDistribution(distribution);
+					setDistributionLoading(false);
+				} else {
+					setDistributionLoading(false);
 				}
 
-				// Transform activities from real data
+				// Set attendance trend data
+				if (overview?.attendanceTrend) {
+					setAttendanceTrendData(overview.attendanceTrend);
+					setTrendLoading(false);
+				} else {
+					setTrendLoading(false);
+				}
+
+				// Fetch coupon stats separately
+				const couponStatsData = await fetchCouponStats();
+				setCouponStats(couponStatsData);
+
+				// Transform activities
 				const realActivities = transformToActivities(overview, couponStatsData);
 				setActivities(realActivities);
+				setActivitiesLoading(false);
 			} catch (err) {
-				console.error('Failed to fetch dashboard data:', err);
 				setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
+				// Set all loading states to false on error
+				setStatsLoading(false);
+				setTrendLoading(false);
+				setDistributionLoading(false);
+				setActivitiesLoading(false);
 			} finally {
 				setLoading(false);
 			}
@@ -79,26 +125,16 @@ export default function OverviewDashboard() {
 		const distribution: PlanDistribution[] = [];
 		const totalChurches = data.totalChurches;
 
-		// Map through churchesByPlan object
-		Object.entries(data.churchesByPlan).forEach(([planName, count]) => {
+		const sortedPlans = Object.entries(data.churchesByPlan).sort((a, b) => b[1] - a[1]);
+
+		sortedPlans.forEach(([planName, count]) => {
 			const percentage = totalChurches > 0 ? Math.round((count / totalChurches) * 100) : 0;
 
-			let color = 'bg-gray-500';
-			let displayName = planName;
-
-			if (planName === 'GROWTH') {
-				color = 'bg-blue-500';
-				displayName = 'Growth Plan';
-			} else if (planName === 'STARTER') {
-				color = 'bg-amber-500';
-				displayName = 'Starter Plan';
-			}
-
 			distribution.push({
-				name: displayName,
+				name: PLAN_DISPLAY_NAMES[planName] || planName,
 				count,
 				percentage,
-				color,
+				color: PLAN_COLORS[planName] || 'bg-gray-500',
 			});
 		});
 
@@ -128,17 +164,27 @@ export default function OverviewDashboard() {
 
 		// Add plan distribution insight
 		if (overview && overview.totalActivePlans > 0) {
+			const planText = overview.totalActivePlans === 1 ? 'church is' : 'churches are';
 			activitiesList.push({
-				text: `${overview.totalActivePlans} church ${overview.totalActivePlans === 1 ? 'is' : 'are'} on active Growth plan`,
+				text: `${overview.totalActivePlans} ${planText} on active Growth plan`,
 				time: 'Current',
 				color: 'bg-purple-500',
+			});
+		}
+
+		// Add starter plans insight
+		if (overview && overview.totalStarterPlans > 0) {
+			activitiesList.push({
+				text: `${overview.totalStarterPlans} ${overview.totalStarterPlans === 1 ? 'church is' : 'churches are'} on Starter plan`,
+				time: 'Current',
+				color: 'bg-amber-500',
 			});
 		}
 
 		// Add coupon usage if available
 		if (couponStats && couponStats.totalUsage > 0) {
 			activitiesList.push({
-				text: `${couponStats.totalUsage} coupons used`,
+				text: `${couponStats.totalUsage} coupon${couponStats.totalUsage === 1 ? '' : 's'} used`,
 				time: 'All time',
 				color: 'bg-purple-500',
 			});
@@ -155,25 +201,113 @@ export default function OverviewDashboard() {
 	const hour = new Date().getHours();
 	const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
-	// Loading state
-	if (loading) {
+	// Trend Chart Skeleton Component
+	const TrendChartSkeleton = () => (
+		<Card className="rounded-3xl p-3">
+			<CardContent>
+				<div className="flex flex-wrap items-center gap-2 sm:gap-3 text-sm">
+					<div className="h-5 w-32 bg-gray-200 rounded animate-pulse" />
+				</div>
+				<div className="mt-4 h-[260px] sm:h-[300px] bg-gray-100 rounded-lg animate-pulse" />
+			</CardContent>
+		</Card>
+	);
+
+	// Stats Card Skeleton
+	const StatsSkeleton = () => (
+		<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+			{[1, 2, 3].map((i) => (
+				<div
+					key={i}
+					className="h-32 bg-gray-100 rounded-2xl animate-pulse"
+				/>
+			))}
+		</div>
+	);
+
+	// Plan Distribution Skeleton
+	const PlanDistributionSkeleton = () => (
+		<Card className="rounded-2xl">
+			<CardHeader className="pb-3">
+				<div className="h-6 w-40 bg-gray-200 rounded animate-pulse" />
+			</CardHeader>
+			<CardContent className="space-y-4">
+				{[1, 2].map((i) => (
+					<div key={i}>
+						<div className="flex justify-between text-sm mb-1.5">
+							<div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+							<div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
+						</div>
+						<div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+							<div className="h-full w-3/4 bg-gray-200 rounded-full animate-pulse" />
+						</div>
+					</div>
+				))}
+				<div className="pt-4 mt-2 border-t border-gray-100 space-y-2">
+					<div className="flex justify-between text-sm">
+						<div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+						<div className="h-4 w-12 bg-gray-200 rounded animate-pulse" />
+					</div>
+					<div className="flex justify-between text-sm">
+						<div className="h-4 w-32 bg-gray-200 rounded animate-pulse" />
+						<div className="h-4 w-12 bg-gray-200 rounded animate-pulse" />
+					</div>
+				</div>
+			</CardContent>
+		</Card>
+	);
+
+	// Activities Skeleton
+	const ActivitiesSkeleton = () => (
+		<Card className="rounded-2xl">
+			<CardHeader className="pb-3">
+				<div className="h-6 w-32 bg-gray-200 rounded animate-pulse" />
+			</CardHeader>
+			<CardContent className="space-y-4">
+				{[1, 2, 3].map((i) => (
+					<div
+						key={i}
+						className="flex gap-3 items-start">
+						<div className="w-2 h-2 rounded-full bg-gray-200 mt-2 animate-pulse" />
+						<div className="flex-1 space-y-1">
+							<div className="h-4 w-48 bg-gray-200 rounded animate-pulse" />
+							<div className="h-3 w-16 bg-gray-200 rounded animate-pulse" />
+						</div>
+					</div>
+				))}
+			</CardContent>
+		</Card>
+	);
+
+	// Full page loading state (only on initial load)
+	if (loading && !overviewData) {
 		return (
 			<div className="space-y-6">
 				<div className="flex flex-col md:flex-row md:items-center justify-between gap-1 mb-6">
 					<div className="h-8 w-64 bg-gray-200 rounded animate-pulse" />
 					<div className="h-5 w-80 bg-gray-200 rounded animate-pulse" />
 				</div>
-				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-					{[1, 2, 3].map((i) => (
+
+				{/* Stats Skeleton */}
+				<StatsSkeleton />
+
+				{/* Trend Chart Skeleton */}
+				<TrendChartSkeleton />
+
+				{/* Two Column Layout Skeleton */}
+				<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+					<PlanDistributionSkeleton />
+					<ActivitiesSkeleton />
+				</div>
+
+				{/* Quick Stats Footer Skeleton */}
+				<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+					{[1, 2, 3, 4].map((i) => (
 						<div
 							key={i}
-							className="h-32 bg-gray-100 rounded-2xl animate-pulse"
+							className="h-24 bg-gray-100 rounded-lg animate-pulse"
 						/>
 					))}
-				</div>
-				<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-					<div className="h-64 bg-gray-100 rounded-2xl animate-pulse" />
-					<div className="h-64 bg-gray-100 rounded-2xl animate-pulse" />
 				</div>
 			</div>
 		);
@@ -214,107 +348,162 @@ export default function OverviewDashboard() {
 				</div>
 			</div>
 
-			{/* Stats Grid - Using real data */}
-			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-				<StatCard
-					title="Total Churches"
-					count={overviewData?.totalChurches?.toString() || '0'}
-					growth={`+${overviewData?.newChurchesLast30Days || 0} this month`}
-				/>
-				<StatCard
-					title="Total Members"
-					count={overviewData?.totalMembers?.toLocaleString() || '0'}
-					growth="Across all churches"
-				/>
-				<StatCard
-					title="Active Growth Plans"
-					count={overviewData?.totalActivePlans?.toString() || '0'}
-					growth={`${overviewData?.totalStarterPlans || 0} on Starter plan`}
-				/>
-			</div>
+			{/* Stats Grid - Skeleton or Data */}
+			{statsLoading ? (
+				<StatsSkeleton />
+			) : (
+				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+					<StatCard
+						title="Total Churches"
+						count={overviewData?.totalChurches?.toString() || '0'}
+						growth={`+${overviewData?.newChurchesLast30Days || 0} this month`}
+					/>
+					<StatCard
+						title="Total Members"
+						count={overviewData?.totalMembers?.toLocaleString() || '0'}
+						growth="Across all churches"
+					/>
+					<StatCard
+						title="Active Growth Plans"
+						count={overviewData?.totalActivePlans?.toString() || '0'}
+						growth={`${overviewData?.totalStarterPlans || 0} on Starter plan`}
+					/>
+				</div>
+			)}
+
+			{/* Trend Chart - Skeleton or Data */}
+			{trendLoading ? (
+				<TrendChartSkeleton />
+			) : (
+				<div className="my-6 mt-2">
+					<TrendChart
+						attendanceData={attendanceTrendData}
+						incomeData={incomeTrendData}
+					/>
+				</div>
+			)}
 
 			{/* Two Column Layout */}
 			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
 				{/* Churches by Plan Distribution */}
-				<Card className="rounded-2xl">
-					<CardHeader className="pb-3">
-						<CardTitle className="text-base font-medium">Churches by Plan</CardTitle>
-					</CardHeader>
-					<CardContent className="space-y-4">
-						{planDistribution.length > 0 ? (
-							planDistribution.map((plan) => (
-								<div key={plan.name}>
-									<div className="flex justify-between text-sm mb-1.5">
-										<Span text={plan.name} />
-										<Span
-											text={`${plan.count} ${plan.count === 1 ? 'church' : 'churches'}`}
-											variant="muted"
-										/>
-									</div>
-									<div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-										<div
-											className={cn('h-full rounded-full', plan.color)}
-											style={{ width: `${plan.percentage}%` }}
-										/>
-									</div>
-								</div>
-							))
-						) : (
-							<Text
-								text="No plan data available"
-								variant="muted"
-								className="text-center py-8"
-							/>
-						)}
-
-						{couponStats && couponStats.totalUsage > 0 && (
-							<div className="pt-4 mt-2 border-t border-gray-100">
-								<div className="flex justify-between text-sm">
-									<Span text="Active Coupons" />
-									<Span
-										text={couponStats.activeCoupons.toString()}
-										className="font-semibold"
-									/>
-								</div>
-								<div className="flex justify-between text-sm mt-2">
-									<Span text="Total Discount Given" />
-									{/* This is needed, the backend needs to provide the data */}
-									{/* <Span
-										text={`$${couponStats.totalDiscountGiven.toLocaleString()}`}
-										className="font-semibold text-green-600"
-									/> */}
-								</div>
-							</div>
-						)}
-					</CardContent>
-				</Card>
-
-				{/* Recent Activity - Using real data */}
-				<Card className="rounded-2xl">
-					<CardHeader className="pb-3">
-						<CardTitle className="text-base font-medium">Recent Activity</CardTitle>
-					</CardHeader>
-					<CardContent className="space-y-3">
-						{activities.map((activity, i) => (
-							<div
-								key={i}
-								className="flex gap-3">
-								<div className={cn('w-2 h-2 rounded-full mt-1.5', activity.color)} />
-								<div className="flex-1">
+				{distributionLoading ? (
+					<PlanDistributionSkeleton />
+				) : (
+					<Card className="rounded-2xl">
+						<CardHeader className="pb-3">
+							<CardTitle className="text-base font-medium">Churches by Plan</CardTitle>
+						</CardHeader>
+						<CardContent className="space-y-4">
+							{planDistribution.length > 0 ? (
+								<>
+									{planDistribution.map((plan) => (
+										<div key={plan.name}>
+											<div className="flex justify-between text-sm mb-1.5">
+												<Span text={plan.name} />
+												<Span
+													text={`${plan.count} ${plan.count === 1 ? 'church' : 'churches'}`}
+													variant="muted"
+												/>
+											</div>
+											<div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+												<div
+													className={cn('h-full rounded-full', plan.color)}
+													style={{ width: `${plan.percentage}%` }}
+												/>
+											</div>
+										</div>
+									))}
+								</>
+							) : (
+								<div className="text-center py-8">
 									<Text
-										text={activity.text}
-										className="text-sm"
-									/>
-									<Span
-										text={activity.time}
+										text="No plan data available"
 										variant="muted"
-										className="text-xs"
 									/>
 								</div>
-							</div>
-						))}
-					</CardContent>
-				</Card>
+							)}
+
+							{/* Summary Statistics */}
+							{overviewData && overviewData.totalChurches > 0 && (
+								<div className="pt-4 mt-2 border-t border-gray-100">
+									<div className="flex justify-between text-sm mb-2">
+										<Span text="Total Churches" />
+										<Span
+											text={overviewData.totalChurches.toString()}
+											className="font-semibold"
+										/>
+									</div>
+									<div className="flex justify-between text-sm">
+										<Span text="Active Growth Plans" />
+										<Span
+											text={overviewData.totalActivePlans.toString()}
+											className="font-semibold text-blue-600"
+										/>
+									</div>
+									<div className="flex justify-between text-sm mt-2">
+										<Span text="Starter Plans" />
+										<Span
+											text={overviewData.totalStarterPlans.toString()}
+											className="font-semibold text-amber-600"
+										/>
+									</div>
+								</div>
+							)}
+
+							{couponStats && couponStats.totalUsage > 0 && (
+								<div className="pt-4 mt-2 border-t border-gray-100">
+									<div className="flex justify-between text-sm">
+										<Span text="Total Coupons Used" />
+										<Span
+											text={couponStats.totalUsage.toString()}
+											className="font-semibold"
+										/>
+									</div>
+									{couponStats.activeCoupons > 0 && (
+										<div className="flex justify-between text-sm mt-2">
+											<Span text="Active Coupons" />
+											<Span
+												text={couponStats.activeCoupons.toString()}
+												className="font-semibold text-green-600"
+											/>
+										</div>
+									)}
+								</div>
+							)}
+						</CardContent>
+					</Card>
+				)}
+
+				{/* Recent Activity */}
+				{activitiesLoading ? (
+					<ActivitiesSkeleton />
+				) : (
+					<Card className="rounded-2xl">
+						<CardHeader className="pb-3">
+							<CardTitle className="text-base font-medium">Recent Activity</CardTitle>
+						</CardHeader>
+						<CardContent className="space-y-4">
+							{activities.map((activity, i) => (
+								<div
+									key={i}
+									className="flex gap-3 items-start">
+									<div className={cn('w-2 h-2 rounded-full mt-2', activity.color)} />
+									<div className="flex-1">
+										<Text
+											text={activity.text}
+											className="text-sm"
+										/>
+										<Span
+											text={activity.time}
+											variant="muted"
+											className="text-xs"
+										/>
+									</div>
+								</div>
+							))}
+						</CardContent>
+					</Card>
+				)}
 			</div>
 
 			{/* Quick Stats Footer */}
@@ -329,12 +518,12 @@ export default function OverviewDashboard() {
 						<p className="text-xs text-gray-500 mt-1">New Churches (30d)</p>
 					</div>
 					<div className="bg-gray-50 rounded-lg p-4 text-center">
-						<p className="text-2xl font-bold text-gray-900">{couponStats?.totalUsage || 0}</p>
-						<p className="text-xs text-gray-500 mt-1">Coupons Used</p>
-					</div>
-					<div className="bg-gray-50 rounded-lg p-4 text-center">
 						<p className="text-2xl font-bold text-gray-900">{overviewData.totalActivePlans}</p>
 						<p className="text-xs text-gray-500 mt-1">Active Growth Plans</p>
+					</div>
+					<div className="bg-gray-50 rounded-lg p-4 text-center">
+						<p className="text-2xl font-bold text-gray-900">{couponStats?.totalUsage || 0}</p>
+						<p className="text-xs text-gray-500 mt-1">Coupons Used</p>
 					</div>
 				</div>
 			)}
