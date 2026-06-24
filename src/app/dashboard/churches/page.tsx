@@ -1,6 +1,6 @@
 'use client';
 
-import { Church as ChurchIcon, CreditCard, Lock, Mail, MapPin, Search, Unlock, UserCog, Users } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Church as ChurchIcon, CreditCard, Lock, Mail, MapPin, Search, Unlock, UserCog, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import {
@@ -19,14 +19,17 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
 import Heading from '@/components/ui/typography/Heading';
 import { Text } from '@/components/ui/typography/Text';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { Church, fetchChurchById, fetchChurches, PlanType, SubscriptionStatus } from '@/services/churchService';
+import { blockChurch, Church, fetchChurchById, fetchChurches, PlanType, SubscriptionStatus, unblockChurch } from '@/services/churchService';
 import { validateCoupon } from '@/services/couponService';
+import { useAuthStore } from '@/stores/useAuthStore';
 
 // Helper function to get initials from church name
 const getInitials = (name: string) => {
@@ -77,8 +80,18 @@ const planOptions = [
 
 type SearchType = 'church' | 'location' | 'both';
 
+// Pagination state interface
+interface PaginationState {
+	page: number;
+	limit: number;
+	totalPages: number;
+	itemCount: number;
+	totalCount: number;
+}
+
 export default function ChurchesPage() {
 	const { toast } = useToast();
+	const { user } = useAuthStore();
 	const [searchQuery, setSearchQuery] = useState('');
 	const [searchType, setSearchType] = useState<SearchType>('both');
 	const [planFilter, setPlanFilter] = useState<string>('all');
@@ -87,31 +100,57 @@ export default function ChurchesPage() {
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
 	const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
+	const [isBlockConfirmOpen, setIsBlockConfirmOpen] = useState(false);
+	const [blockReason, setBlockReason] = useState('');
+	const [blockNote, setBlockNote] = useState('');
 	const [selectedPlan, setSelectedPlan] = useState('');
 	const [couponCode, setCouponCode] = useState('');
 	const [discountApplied, setDiscountApplied] = useState<{ type: string; value: number } | null>(null);
 	const [churches, setChurches] = useState<Church[]>([]);
-	const [totalCount, setTotalCount] = useState(0);
 	const [loading, setLoading] = useState(true);
+	const [tableLoading, setTableLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [isSubmitting, setIsSubmitting] = useState(false);
+
+	// Pagination state
+	const [pagination, setPagination] = useState<PaginationState>({
+		page: 1,
+		limit: 20,
+		totalPages: 1,
+		itemCount: 0,
+		totalCount: 0,
+	});
+	const [itemsPerPage, setItemsPerPage] = useState(20);
 
 	// Fetch churches on load and when filters change
 	useEffect(() => {
 		fetchChurchesData();
-	}, [planFilter, statusFilter]);
+	}, [planFilter, statusFilter, pagination.page, pagination.limit]);
 
-	const fetchChurchesData = async () => {
-		setLoading(true);
+	const fetchChurchesData = async (showTableLoader = true) => {
+		if (showTableLoader) {
+			setTableLoading(true);
+		} else {
+			setLoading(true);
+		}
 		setError(null);
+
 		try {
-			const params: any = { limit: 100 };
+			const params: any = {
+				page: pagination.page,
+				limit: pagination.limit,
+			};
 			if (planFilter !== 'all') params.plan = planFilter;
 			if (statusFilter !== 'all') params.subscriptionStatus = statusFilter;
 
 			const response = await fetchChurches(params);
 			setChurches(response.data);
-			setTotalCount(response.totalCount);
+			setPagination((prev) => ({
+				...prev,
+				totalPages: response.pagination.totalPages,
+				itemCount: response.pagination.itemCount,
+				totalCount: response.totalCount,
+			}));
 		} catch (err) {
 			console.error('Failed to fetch churches:', err);
 			setError(err instanceof Error ? err.message : 'Failed to load churches');
@@ -122,6 +161,7 @@ export default function ChurchesPage() {
 			});
 		} finally {
 			setLoading(false);
+			setTableLoading(false);
 		}
 	};
 
@@ -139,6 +179,7 @@ export default function ChurchesPage() {
 		}
 	};
 
+	// Search filtering (client-side)
 	const filteredChurches = churches.filter((church) => {
 		if (!searchQuery) return true;
 
@@ -153,9 +194,102 @@ export default function ChurchesPage() {
 		}
 	});
 
+	// Pagination handlers
+	const handlePageChange = (newPage: number) => {
+		if (newPage < 1 || newPage > pagination.totalPages) return;
+		setPagination((prev) => ({ ...prev, page: newPage }));
+	};
+
+	const handleItemsPerPageChange = (value: string) => {
+		const newLimit = parseInt(value);
+		setItemsPerPage(newLimit);
+		setPagination((prev) => ({ ...prev, limit: newLimit, page: 1 })); // Reset to first page when changing limit
+	};
+
 	const handleViewDetails = (church: Church) => {
 		setSelectedChurch(church);
 		setIsModalOpen(true);
+	};
+
+	const handleOpenBlockConfirm = () => {
+		setBlockReason('');
+		setBlockNote('');
+		setIsBlockConfirmOpen(true);
+	};
+
+	const handleToggleBlock = async () => {
+		if (!selectedChurch) return;
+
+		// If unblocking, confirm without reason
+		if (selectedChurch.isBlocked) {
+			setIsSubmitting(true);
+			try {
+				const result = await unblockChurch(selectedChurch.id, {
+					reason: 'Church unblocked by administrator',
+				});
+
+				const updatedChurches = churches.map((c) => (c.id === selectedChurch.id ? { ...c, isBlocked: false, ...result.data } : c));
+				setChurches(updatedChurches);
+				setSelectedChurch({ ...selectedChurch, isBlocked: false });
+
+				toast({
+					title: 'Church Unblocked',
+					description: `${selectedChurch.name} has been unblocked successfully.`,
+				});
+
+				setIsBlockModalOpen(false);
+				setIsBlockConfirmOpen(false);
+			} catch (err) {
+				toast({
+					title: 'Error',
+					description: err instanceof Error ? err.message : 'Failed to unblock church',
+					variant: 'destructive',
+				});
+			} finally {
+				setIsSubmitting(false);
+			}
+			return;
+		}
+
+		// Blocking - validate reason
+		if (!blockReason.trim()) {
+			toast({
+				title: 'Reason Required',
+				description: 'Please provide a reason for blocking this church.',
+				variant: 'destructive',
+			});
+			return;
+		}
+
+		setIsSubmitting(true);
+		try {
+			const result = await blockChurch(selectedChurch.id, {
+				reason: blockReason.trim(),
+				note: blockNote.trim() || `Blocked by ${user?.name || 'Administrator'}`,
+			});
+
+			const updatedChurches = churches.map((c) => (c.id === selectedChurch.id ? { ...c, isBlocked: true, ...result.data } : c));
+			setChurches(updatedChurches);
+			setSelectedChurch({ ...selectedChurch, isBlocked: true });
+
+			toast({
+				title: 'Church Blocked',
+				description: `${selectedChurch.name} has been blocked.`,
+			});
+
+			setIsBlockModalOpen(false);
+			setIsBlockConfirmOpen(false);
+			setBlockReason('');
+			setBlockNote('');
+		} catch (err) {
+			toast({
+				title: 'Error',
+				description: err instanceof Error ? err.message : 'Failed to block church',
+				variant: 'destructive',
+			});
+		} finally {
+			setIsSubmitting(false);
+		}
 	};
 
 	const handlePlanChange = async () => {
@@ -164,9 +298,6 @@ export default function ChurchesPage() {
 		setIsSubmitting(true);
 		try {
 			// TODO: Call API to update church plan when endpoint is available
-			// const updatedChurch = await updateChurchPlan(selectedChurch.id, { plan: selectedPlan });
-
-			// For now, update locally
 			const updatedChurches = churches.map((c) => (c.id === selectedChurch.id ? { ...c, plan: selectedPlan as PlanType } : c));
 			setChurches(updatedChurches);
 
@@ -225,30 +356,6 @@ export default function ChurchesPage() {
 		}
 	};
 
-	const handleToggleBlock = async () => {
-		if (!selectedChurch) return;
-
-		setIsSubmitting(true);
-		try {
-			// TODO: Call API to block/unblock church when endpoint is available
-			// For now, just show toast
-			// toast({
-			// 	title: selectedChurch.isBlocked ? 'Church Unblocked' : 'Church Blocked',
-			// 	description: selectedChurch.isBlocked ? `${selectedChurch.name} has been unblocked.` : `${selectedChurch.name} has been blocked.`,
-			// });
-			setIsBlockModalOpen(false);
-		} catch (err) {
-			console.error('Failed to toggle block status:', err);
-			toast({
-				title: 'Error',
-				description: err instanceof Error ? err.message : 'Failed to update block status',
-				variant: 'destructive',
-			});
-		} finally {
-			setIsSubmitting(false);
-		}
-	};
-
 	const openPlanModal = () => {
 		setSelectedPlan(selectedChurch?.plan || '');
 		setIsPlanModalOpen(true);
@@ -258,12 +365,25 @@ export default function ChurchesPage() {
 		return statusBadgeClass[status] || 'bg-gray-100 text-gray-700';
 	};
 
-	// Calculate stats
+	// Calculate stats (from all churches data)
 	const activeChurches = churches.filter((c) => c.subscriptionStatus === 'Active').length;
 	const expiringChurches = churches.filter((c) => c.subscriptionStatus === 'Expiring soon').length;
 	const overdueChurches = churches.filter((c) => c.subscriptionStatus === 'Overdue').length;
 	const totalMembers = churches.reduce((sum, c) => sum + c.totalMembers, 0);
 
+	// Table skeleton loader
+	const TableSkeleton = () => (
+		<div className="space-y-2 p-4">
+			{[1, 2, 3, 4, 5].map((i) => (
+				<div
+					key={i}
+					className="h-16 bg-gray-100 rounded animate-pulse"
+				/>
+			))}
+		</div>
+	);
+
+	// Initial loading state (full page)
 	if (loading) {
 		return (
 			<div className="space-y-6">
@@ -285,14 +405,7 @@ export default function ChurchesPage() {
 				</div>
 				<Card className="rounded-2xl">
 					<CardContent className="p-0">
-						<div className="space-y-2 p-4">
-							{[1, 2, 3, 4, 5].map((i) => (
-								<div
-									key={i}
-									className="h-16 bg-gray-100 rounded animate-pulse"
-								/>
-							))}
-						</div>
+						<TableSkeleton />
 					</CardContent>
 				</Card>
 			</div>
@@ -307,7 +420,7 @@ export default function ChurchesPage() {
 					<p className="text-sm mt-1">{error}</p>
 				</div>
 				<Button
-					onClick={fetchChurchesData}
+					onClick={() => fetchChurchesData(false)}
 					variant="outline">
 					Try Again
 				</Button>
@@ -324,14 +437,17 @@ export default function ChurchesPage() {
 						text="Churches"
 					/>
 					<Text
-						text={`${totalCount} registered churches across the platform`}
+						text={`${pagination.totalCount} registered churches across the platform`}
 						variant="muted"
 					/>
 				</div>
 				<div className="flex gap-2">
 					<Select
 						value={planFilter}
-						onValueChange={setPlanFilter}>
+						onValueChange={(value) => {
+							setPlanFilter(value);
+							setPagination((prev) => ({ ...prev, page: 1 }));
+						}}>
 						<SelectTrigger className="w-[140px]">
 							<SelectValue placeholder="All Plans" />
 						</SelectTrigger>
@@ -345,7 +461,10 @@ export default function ChurchesPage() {
 					</Select>
 					<Select
 						value={statusFilter}
-						onValueChange={setStatusFilter}>
+						onValueChange={(value) => {
+							setStatusFilter(value);
+							setPagination((prev) => ({ ...prev, page: 1 }));
+						}}>
 						<SelectTrigger className="w-[150px]">
 							<SelectValue placeholder="All Status" />
 						</SelectTrigger>
@@ -372,7 +491,7 @@ export default function ChurchesPage() {
 								/>
 								<Heading
 									level={2}
-									text={totalCount.toString()}
+									text={pagination.totalCount.toString()}
 									className="text-2xl font-semibold mt-1"
 								/>
 							</div>
@@ -480,76 +599,174 @@ export default function ChurchesPage() {
 			{/* Churches Table */}
 			<Card className="rounded-2xl">
 				<CardContent className="p-0">
-					<div className="overflow-x-auto">
-						<table className="w-full text-sm">
-							<thead>
-								<tr className="border-b">
-									<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Church</th>
-									<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Location</th>
-									<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Members</th>
-									<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Users</th>
-									<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Plan</th>
-									<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Status</th>
-									<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Actions</th>
-								</tr>
-							</thead>
-							<tbody>
-								{filteredChurches.map((church) => {
-									const avatarColor = getAvatarColor(church.name);
-
-									return (
-										<tr
-											key={church.id}
-											className="border-b last:border-0 hover:bg-gray-50 transition-colors">
-											<td className="py-3 px-4">
-												<div className="flex items-center gap-3">
-													<Avatar className="h-8 w-8">
-														<AvatarFallback className={cn(avatarColor.bg, avatarColor.text)}>{getInitials(church.name)}</AvatarFallback>
-													</Avatar>
-													<span className="font-medium">{church.name}</span>
-												</div>
-											</td>
-											<td className="py-3 px-4 text-gray-500 text-sm">{church.location}</td>
-											<td className="py-3 px-4 font-medium">{church.totalMembers.toLocaleString()}</td>
-											<td className="py-3 px-4 font-medium">{church.totalUsers.toLocaleString()}</td>
-											<td className="py-3 px-4">
-												<span className={cn('px-2 py-1 rounded-full text-xs font-medium', planBadgeClass[church.plan])}>{church.plan}</span>
-											</td>
-											<td className="py-3 px-4">
-												<span className={cn('px-2 py-1 rounded-full text-xs font-medium', getStatusBadge(church.subscriptionStatus))}>{church.subscriptionStatus}</span>
-											</td>
-											<td className="py-3 px-4">
-												<Button
-													variant="outline"
-													size="sm"
-													className="h-8"
-													onClick={() => handleViewDetails(church)}>
-													View
-												</Button>
-											</td>
+					{tableLoading ? (
+						<TableSkeleton />
+					) : (
+						<>
+							<div className="overflow-x-auto">
+								<table className="w-full text-sm">
+									<thead>
+										<tr className="border-b">
+											<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Church</th>
+											<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Location</th>
+											<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Members</th>
+											<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Users</th>
+											<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Plan</th>
+											<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Status</th>
+											<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Actions</th>
 										</tr>
-									);
-								})}
-							</tbody>
-						</table>
-					</div>
+									</thead>
+									<tbody>
+										{filteredChurches.map((church) => {
+											const avatarColor = getAvatarColor(church.name);
 
-					{filteredChurches.length === 0 && !loading && (
-						<div className="text-center py-12">
-							<Search className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-							<Text
-								text="No churches found"
-								className="text-gray-500"
-							/>
-							<Text
-								text="Try adjusting your search or filters"
-								variant="muted"
-								className="text-sm"
-							/>
-						</div>
+											return (
+												<tr
+													key={church.id}
+													className="border-b last:border-0 hover:bg-gray-50 transition-colors">
+													<td className="py-3 px-4">
+														<div className="flex items-center gap-3">
+															<Avatar className="h-8 w-8">
+																<AvatarFallback className={cn(avatarColor.bg, avatarColor.text)}>{getInitials(church.name)}</AvatarFallback>
+															</Avatar>
+															<span className="font-medium">{church.name}</span>
+															{church.isBlocked && <span className="ml-2 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">Blocked</span>}
+														</div>
+													</td>
+													<td className="py-3 px-4 text-gray-500 text-sm">{church.location}</td>
+													<td className="py-3 px-4 font-medium">{church.totalMembers.toLocaleString()}</td>
+													<td className="py-3 px-4 font-medium">{church.totalUsers.toLocaleString()}</td>
+													<td className="py-3 px-4">
+														<span className={cn('px-2 py-1 rounded-full text-xs font-medium', planBadgeClass[church.plan])}>{church.plan}</span>
+													</td>
+													<td className="py-3 px-4">
+														<span className={cn('px-2 py-1 rounded-full text-xs font-medium', getStatusBadge(church.subscriptionStatus))}>
+															{church.subscriptionStatus}
+														</span>
+													</td>
+													<td className="py-3 px-4">
+														<Button
+															variant="outline"
+															size="sm"
+															className="h-8"
+															onClick={() => handleViewDetails(church)}>
+															View
+														</Button>
+													</td>
+												</tr>
+											);
+										})}
+									</tbody>
+								</table>
+							</div>
+
+							{filteredChurches.length === 0 && !tableLoading && (
+								<div className="text-center py-12">
+									<Search className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+									<Text
+										text="No churches found"
+										className="text-gray-500"
+									/>
+									<Text
+										text="Try adjusting your search or filters"
+										variant="muted"
+										className="text-sm"
+									/>
+								</div>
+							)}
+						</>
 					)}
 				</CardContent>
 			</Card>
+
+			{/* Pagination Component */}
+			{!tableLoading && pagination.totalCount > 0 && (
+				<div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-4 py-3 border-t border-gray-200 bg-gray-50 rounded-b-2xl mt-4">
+					<div className="flex items-center gap-2">
+						<span className="text-sm text-gray-600 whitespace-nowrap">Rows per page:</span>
+						<Select
+							value={pagination.limit.toString()}
+							onValueChange={handleItemsPerPageChange}>
+							<SelectTrigger className="w-20 h-8">
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								{[5, 10, 20, 50, 100].map((size) => (
+									<SelectItem
+										key={size}
+										value={size.toString()}>
+										{size}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</div>
+
+					<div className="text-sm text-gray-600 whitespace-nowrap">
+						Showing {(pagination.page - 1) * pagination.limit + 1} to {Math.min(pagination.page * pagination.limit, pagination.totalCount)} of {pagination.totalCount}{' '}
+						results
+					</div>
+
+					<div className="flex items-center gap-2">
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => handlePageChange(pagination.page - 1)}
+							disabled={pagination.page === 1}
+							className="h-8 px-2">
+							<ChevronLeft className="h-4 w-4" />
+							<span className="hidden sm:inline">Previous</span>
+						</Button>
+
+						<div className="flex gap-1">
+							{(() => {
+								const totalPages = pagination.totalPages;
+								const currentPage = pagination.page;
+								const pageNumbers = [];
+
+								if (totalPages <= 5) {
+									for (let i = 1; i <= totalPages; i++) {
+										pageNumbers.push(i);
+									}
+								} else if (currentPage <= 3) {
+									for (let i = 1; i <= 5; i++) {
+										pageNumbers.push(i);
+									}
+								} else if (currentPage >= totalPages - 2) {
+									for (let i = totalPages - 4; i <= totalPages; i++) {
+										pageNumbers.push(i);
+									}
+								} else {
+									for (let i = currentPage - 2; i <= currentPage + 2; i++) {
+										pageNumbers.push(i);
+									}
+								}
+
+								return pageNumbers.map((pageNum) => (
+									<Button
+										key={pageNum}
+										variant={currentPage === pageNum ? 'default' : 'outline'}
+										size="sm"
+										onClick={() => handlePageChange(pageNum)}
+										className="h-8 w-8 p-0">
+										{pageNum}
+									</Button>
+								));
+							})()}
+						</div>
+
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => handlePageChange(pagination.page + 1)}
+							disabled={pagination.page === pagination.totalPages}
+							className="h-8 px-2">
+							<span className="hidden sm:inline">Next</span>
+							<ChevronRight className="h-4 w-4" />
+						</Button>
+					</div>
+				</div>
+			)}
 
 			{/* Church Details Modal */}
 			<Dialog
@@ -573,6 +790,7 @@ export default function ChurchesPage() {
 										<span className={cn('px-2 py-0.5 rounded-full text-xs font-medium', selectedChurch && getStatusBadge(selectedChurch.subscriptionStatus))}>
 											{selectedChurch?.subscriptionStatus}
 										</span>
+										{selectedChurch?.isBlocked && <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">Blocked</span>}
 									</div>
 								</div>
 							</div>
@@ -634,18 +852,54 @@ export default function ChurchesPage() {
 								</div>
 							</div>
 						</div>
+
+						{/* Block Info if blocked */}
+						{selectedChurch?.isBlocked && selectedChurch?.blockReason && (
+							<div>
+								<div className="flex items-center gap-2 mb-2">
+									<Lock className="h-4 w-4 text-red-500" />
+									<Text
+										text="Block Reason"
+										className="font-medium text-sm text-red-600"
+									/>
+								</div>
+								<div className="pl-6 p-3 bg-red-50 rounded-lg border border-red-200">
+									<Text
+										text={selectedChurch.blockReason}
+										className="text-sm text-red-700"
+									/>
+									{selectedChurch.blockedAt && (
+										<Text
+											text={`Blocked on: ${new Date(selectedChurch.blockedAt).toLocaleDateString()}`}
+											variant="muted"
+											className="text-xs mt-1"
+										/>
+									)}
+								</div>
+							</div>
+						)}
 					</div>
 
 					<Separator className="my-3" />
 
 					<div className="flex justify-between gap-3">
-						<Button
-							variant="outline"
-							className="gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
-							onClick={() => setIsBlockModalOpen(true)}>
-							<Lock className="h-4 w-4" />
-							Block Church
-						</Button>
+						{selectedChurch?.isBlocked ? (
+							<Button
+								variant="outline"
+								className="gap-2 text-green-600 hover:text-green-700 hover:bg-green-50"
+								onClick={handleOpenBlockConfirm}>
+								<Unlock className="h-4 w-4" />
+								Unblock Church
+							</Button>
+						) : (
+							<Button
+								variant="outline"
+								className="gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+								onClick={handleOpenBlockConfirm}>
+								<Lock className="h-4 w-4" />
+								Block Church
+							</Button>
+						)}
 						<div className="flex gap-3">
 							<Button
 								variant="outline"
@@ -660,6 +914,93 @@ export default function ChurchesPage() {
 					</div>
 				</DialogContent>
 			</Dialog>
+
+			{/* Block/Unblock Confirmation Dialog with Reason Input */}
+			<AlertDialog
+				open={isBlockConfirmOpen}
+				onOpenChange={setIsBlockConfirmOpen}>
+				<AlertDialogContent className="max-w-md">
+					<AlertDialogHeader>
+						<AlertDialogTitle className="flex items-center gap-2">
+							{selectedChurch?.isBlocked ? <Unlock className="h-5 w-5 text-green-600" /> : <Lock className="h-5 w-5 text-red-600" />}
+							{selectedChurch?.isBlocked ? 'Unblock Church' : 'Block Church'}
+						</AlertDialogTitle>
+						<AlertDialogDescription>
+							{selectedChurch?.isBlocked ? (
+								<>
+									You are about to unblock <span className="font-semibold">{selectedChurch?.name}</span>.
+									<br />
+									<br />
+									<span className="text-green-600">✓</span> The church will regain access to all platform features.
+									<br />
+									<span className="text-green-600">✓</span> All administrators will be able to log in again.
+									<br />
+									<span className="text-green-600">✓</span> Subscription billing will resume.
+								</>
+							) : (
+								<>
+									You are about to block <span className="font-semibold">{selectedChurch?.name}</span>.
+									<br />
+									<br />
+									<span className="text-red-600">⚠</span> The church will lose access to all platform features.
+									<br />
+									<span className="text-red-600">⚠</span> All administrators will be unable to log in.
+									<br />
+									<span className="text-red-600">⚠</span> Subscription billing will be paused.
+								</>
+							)}
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+
+					<div className="space-y-4 py-4">
+						{!selectedChurch?.isBlocked && (
+							<>
+								<div className="space-y-2">
+									<Label
+										htmlFor="block-reason"
+										className="text-sm font-medium">
+										Reason for blocking <span className="text-red-500">*</span>
+									</Label>
+									<Input
+										id="block-reason"
+										placeholder="e.g., Terms of service violation, Payment default, etc."
+										value={blockReason}
+										onChange={(e) => setBlockReason(e.target.value)}
+										disabled={isSubmitting}
+										className="w-full"
+									/>
+								</div>
+								<div className="space-y-2">
+									<Label
+										htmlFor="block-note"
+										className="text-sm font-medium">
+										Additional Notes (Optional)
+									</Label>
+									<Textarea
+										id="block-note"
+										placeholder="Add any additional context or notes..."
+										value={blockNote}
+										onChange={(e) => setBlockNote(e.target.value)}
+										disabled={isSubmitting}
+										rows={3}
+										className="w-full resize-none"
+									/>
+								</div>
+							</>
+						)}
+					</div>
+
+					<AlertDialogFooter>
+						<AlertDialogCancel disabled={isSubmitting}>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={handleToggleBlock}
+							className={`${!selectedChurch?.isBlocked ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'} text-white-600`}
+							disabled={isSubmitting || (!selectedChurch?.isBlocked && !blockReason.trim())}>
+							{isSubmitting ? 'Processing...' : selectedChurch?.isBlocked ? 'Yes, Unblock Church' : 'Yes, Block Church'}
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 
 			{/* Plan Management Modal */}
 			<Dialog
@@ -763,39 +1104,6 @@ export default function ChurchesPage() {
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
-
-			{/* Block Confirmation Dialog */}
-			<AlertDialog
-				open={isBlockModalOpen}
-				onOpenChange={setIsBlockModalOpen}>
-				<AlertDialogContent>
-					<AlertDialogHeader>
-						<AlertDialogTitle className="flex items-center gap-2">
-							<Lock className="h-5 w-5 text-red-600" />
-							Block Church
-						</AlertDialogTitle>
-						<AlertDialogDescription>
-							Are you sure you want to block <span className="font-semibold">{selectedChurch?.name}</span>?
-							<br />
-							<br />
-							<span className="text-red-600">⚠</span> The church will lose access to all platform features.
-							<br />
-							<span className="text-red-600">⚠</span> All administrators will be unable to log in.
-							<br />
-							<span className="text-red-600">⚠</span> Subscription billing will be paused.
-						</AlertDialogDescription>
-					</AlertDialogHeader>
-					<AlertDialogFooter>
-						<AlertDialogCancel disabled={isSubmitting}>Cancel</AlertDialogCancel>
-						<AlertDialogAction
-							onClick={handleToggleBlock}
-							className="bg-red-600 hover:bg-red-700"
-							disabled={isSubmitting}>
-							{isSubmitting ? 'Processing...' : 'Yes, Block Church'}
-						</AlertDialogAction>
-					</AlertDialogFooter>
-				</AlertDialogContent>
-			</AlertDialog>
 		</>
 	);
 }
