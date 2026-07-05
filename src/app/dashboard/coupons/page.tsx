@@ -1,7 +1,7 @@
 'use client';
 
 import { format } from 'date-fns';
-import { AlertCircle, Calendar, CheckCircle, Copy, DollarSign, Edit, Gift, Percent, Plus, Search, Tag, Trash2, Users, XCircle } from 'lucide-react';
+import { AlertCircle, Calendar, CheckCircle, Copy, DollarSign, Edit, Gift, Percent, Plus, Search, Tag, Trash2, Users, X, XCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import {
@@ -92,6 +92,7 @@ export default function CouponsPage() {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [formError, setFormError] = useState<string | null>(null);
 	const { toast } = useToast();
 
 	const [formData, setFormData] = useState({
@@ -197,14 +198,11 @@ export default function CouponsPage() {
 
 	const handleCreateCoupon = async () => {
 		if (!formData.code || !formData.discount || !formData.expiryDate) {
-			toast({
-				title: 'Validation Error',
-				description: 'Please fill in all required fields',
-				variant: 'destructive',
-			});
+			setFormError('Please fill in all required fields');
 			return;
 		}
 
+		setFormError(null);
 		setIsSubmitting(true);
 		try {
 			const payload = buildCouponPayload(formData);
@@ -217,13 +215,23 @@ export default function CouponsPage() {
 			setIsCreateModalOpen(false);
 			resetForm();
 			await fetchCouponsData();
-		} catch (err) {
+		} catch (err: any) {
 			console.error('Failed to create coupon:', err);
-			toast({
-				title: 'Error',
-				description: err instanceof Error ? err.message : 'Failed to create coupon',
-				variant: 'destructive',
-			});
+			// Extract error message
+			let errorMessage = 'Failed to create coupon. Please try again.';
+			if (err?.message) {
+				errorMessage = err.message;
+			} else if (err?.response?.data?.message) {
+				const apiMessage = err.response.data.message;
+				if (Array.isArray(apiMessage)) {
+					errorMessage = apiMessage.join(', ');
+				} else {
+					errorMessage = apiMessage;
+				}
+			} else if (typeof err === 'string') {
+				errorMessage = err;
+			}
+			setFormError(errorMessage);
 		} finally {
 			setIsSubmitting(false);
 		}
@@ -231,14 +239,11 @@ export default function CouponsPage() {
 
 	const handleEditCoupon = async () => {
 		if (!selectedCoupon) {
-			toast({
-				title: 'Error',
-				description: 'No coupon selected for editing',
-				variant: 'destructive',
-			});
+			setFormError('No coupon selected for editing');
 			return;
 		}
 
+		setFormError(null);
 		setIsSubmitting(true);
 		try {
 			const payload = buildCouponPayload(formData);
@@ -251,13 +256,22 @@ export default function CouponsPage() {
 			setIsEditModalOpen(false);
 			resetForm();
 			await fetchCouponsData();
-		} catch (err) {
+		} catch (err: any) {
 			console.error('Failed to update coupon:', err);
-			toast({
-				title: 'Error',
-				description: err instanceof Error ? err.message : 'Failed to update coupon',
-				variant: 'destructive',
-			});
+			let errorMessage = 'Failed to update coupon. Please try again.';
+			if (err?.message) {
+				errorMessage = err.message;
+			} else if (err?.response?.data?.message) {
+				const apiMessage = err.response.data.message;
+				if (Array.isArray(apiMessage)) {
+					errorMessage = apiMessage.join(', ');
+				} else {
+					errorMessage = apiMessage;
+				}
+			} else if (typeof err === 'string') {
+				errorMessage = err;
+			}
+			setFormError(errorMessage);
 		} finally {
 			setIsSubmitting(false);
 		}
@@ -326,6 +340,7 @@ export default function CouponsPage() {
 
 	const openEditModal = (coupon: Coupon) => {
 		setSelectedCoupon(coupon);
+		setFormError(null);
 		setFormData({
 			code: coupon.code,
 			type: coupon.type,
@@ -363,6 +378,7 @@ export default function CouponsPage() {
 			status: 'ACTIVE',
 		});
 		setSelectedCoupon(null);
+		setFormError(null);
 	};
 
 	const formatDate = (dateString: string | null) => {
@@ -408,6 +424,12 @@ export default function CouponsPage() {
 			...prev,
 			excludedPlans: prev.excludedPlans.includes(plan) ? prev.excludedPlans.filter((p) => p !== plan) : [...prev.excludedPlans, plan],
 		}));
+	};
+
+	// Clear form error when user makes changes
+	const handleFormChange = (field: string, value: any) => {
+		setFormData((prev) => ({ ...prev, [field]: value }));
+		if (formError) setFormError(null);
 	};
 
 	if (loading) {
@@ -468,7 +490,10 @@ export default function CouponsPage() {
 					/>
 				</div>
 				<Button
-					onClick={() => setIsCreateModalOpen(true)}
+					onClick={() => {
+						resetForm();
+						setIsCreateModalOpen(true);
+					}}
 					className="gap-2">
 					<Plus className="h-4 w-4" />
 					Create Coupon
@@ -777,7 +802,10 @@ export default function CouponsPage() {
 						/>
 						{!searchQuery && statusFilter === 'all' && typeFilter === 'all' && (
 							<Button
-								onClick={() => setIsCreateModalOpen(true)}
+								onClick={() => {
+									resetForm();
+									setIsCreateModalOpen(true);
+								}}
 								className="mt-4 gap-2">
 								<Plus className="h-4 w-4" />
 								Create Coupon
@@ -787,6 +815,7 @@ export default function CouponsPage() {
 				</Card>
 			)}
 
+			{/* Create/Edit Coupon Modal */}
 			<Dialog
 				open={isCreateModalOpen || isEditModalOpen}
 				onOpenChange={(open) => {
@@ -803,6 +832,23 @@ export default function CouponsPage() {
 					</DialogHeader>
 
 					<div className="space-y-4 py-4">
+						{/* Error Alert */}
+						{formError && (
+							<div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+								<div className="flex-shrink-0 mt-0.5">
+									<AlertCircle className="h-4 w-4 text-red-500" />
+								</div>
+								<div className="flex-1 text-sm text-red-700 whitespace-pre-wrap">{formError}</div>
+								<Button
+									variant="ghost"
+									size="sm"
+									className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-100 flex-shrink-0"
+									onClick={() => setFormError(null)}>
+									<X className="h-4 w-4" />
+								</Button>
+							</div>
+						)}
+
 						<div className="grid grid-cols-2 gap-4">
 							<div>
 								<Label htmlFor="code">Coupon Code *</Label>
@@ -810,10 +856,11 @@ export default function CouponsPage() {
 									id="code"
 									placeholder="e.g., SUMMER20"
 									value={formData.code}
-									onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-									className="mt-1.5 font-mono"
+									onChange={(e) => handleFormChange('code', e.target.value.toUpperCase())}
 									maxLength={20}
 									disabled={isSubmitting || isEditModalOpen}
+									// Show red border if there's an error and field is empty
+									className={cn('mt-1.5 font-mono', formError && !formData.code ? 'border-red-500' : '')}
 								/>
 								<Text
 									text="Only letters, numbers, and underscores"
@@ -825,7 +872,7 @@ export default function CouponsPage() {
 								<Label htmlFor="type">Coupon Type *</Label>
 								<Select
 									value={formData.type}
-									onValueChange={(value) => setFormData({ ...formData, type: value as CouponType })}
+									onValueChange={(value) => handleFormChange('type', value as CouponType)}
 									disabled={isSubmitting}>
 									<SelectTrigger className="mt-1.5">
 										<SelectValue placeholder="Select type" />
@@ -849,7 +896,7 @@ export default function CouponsPage() {
 								id="description"
 								placeholder="What is this coupon for?"
 								value={formData.description}
-								onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+								onChange={(e) => handleFormChange('description', e.target.value)}
 								className="mt-1.5"
 								disabled={isSubmitting}
 							/>
@@ -860,7 +907,7 @@ export default function CouponsPage() {
 								<Label htmlFor="discountType">Discount Type *</Label>
 								<Select
 									value={formData.discountType}
-									onValueChange={(value) => setFormData({ ...formData, discountType: value as DiscountType })}
+									onValueChange={(value) => handleFormChange('discountType', value as DiscountType)}
 									disabled={isSubmitting}>
 									<SelectTrigger className="mt-1.5">
 										<SelectValue placeholder="Select type" />
@@ -878,8 +925,8 @@ export default function CouponsPage() {
 									type="number"
 									placeholder={formData.discountType === 'PERCENTAGE' ? 'e.g., 20' : 'e.g., 5000'}
 									value={formData.discount}
-									onChange={(e) => setFormData({ ...formData, discount: e.target.value })}
-									className="mt-1.5"
+									onChange={(e) => handleFormChange('discount', e.target.value)}
+									className={cn('mt-1.5', formError && !formData.discount ? 'border-red-500' : '')}
 									disabled={isSubmitting}
 									min="0.01"
 									step="0.01"
@@ -894,7 +941,7 @@ export default function CouponsPage() {
 									id="validFrom"
 									type="date"
 									value={formData.validFrom}
-									onChange={(e) => setFormData({ ...formData, validFrom: e.target.value })}
+									onChange={(e) => handleFormChange('validFrom', e.target.value)}
 									className="mt-1.5"
 									disabled={isSubmitting}
 								/>
@@ -905,8 +952,8 @@ export default function CouponsPage() {
 									id="expiryDate"
 									type="date"
 									value={formData.expiryDate}
-									onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
-									className="mt-1.5"
+									onChange={(e) => handleFormChange('expiryDate', e.target.value)}
+									className={cn('mt-1.5', formError && !formData.expiryDate ? 'border-red-500' : '')}
 									min={new Date().toISOString().split('T')[0]}
 									disabled={isSubmitting}
 								/>
@@ -921,7 +968,7 @@ export default function CouponsPage() {
 									type="number"
 									placeholder="Leave empty for unlimited"
 									value={formData.maxUsage}
-									onChange={(e) => setFormData({ ...formData, maxUsage: e.target.value })}
+									onChange={(e) => handleFormChange('maxUsage', e.target.value)}
 									className="mt-1.5"
 									disabled={isSubmitting}
 									min="0"
@@ -932,10 +979,7 @@ export default function CouponsPage() {
 								<Select
 									value={formData.minPlanTier || 'none'}
 									onValueChange={(value) => {
-										setFormData({
-											...formData,
-											minPlanTier: value === 'none' ? '' : (value as PlanType),
-										});
+										handleFormChange('minPlanTier', value === 'none' ? '' : (value as PlanType));
 									}}
 									disabled={isSubmitting}>
 									<SelectTrigger className="mt-1.5">
@@ -983,7 +1027,7 @@ export default function CouponsPage() {
 								<Label htmlFor="status">Status</Label>
 								<Select
 									value={formData.status}
-									onValueChange={(value) => setFormData({ ...formData, status: value as CouponStatus })}
+									onValueChange={(value) => handleFormChange('status', value as CouponStatus)}
 									disabled={isSubmitting}>
 									<SelectTrigger className="mt-1.5">
 										<SelectValue placeholder="Select status" />
@@ -1007,7 +1051,7 @@ export default function CouponsPage() {
 								<Switch
 									id="isActive"
 									checked={formData.isActive}
-									onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
+									onCheckedChange={(checked) => handleFormChange('isActive', checked)}
 									disabled={isSubmitting}
 								/>
 							</div>
@@ -1026,7 +1070,7 @@ export default function CouponsPage() {
 								<Switch
 									id="isStackable"
 									checked={formData.isStackable}
-									onCheckedChange={(checked) => setFormData({ ...formData, isStackable: checked })}
+									onCheckedChange={(checked) => handleFormChange('isStackable', checked)}
 									disabled={isSubmitting}
 								/>
 							</div>
@@ -1042,7 +1086,7 @@ export default function CouponsPage() {
 								<Switch
 									id="isTransferable"
 									checked={formData.isTransferable}
-									onCheckedChange={(checked) => setFormData({ ...formData, isTransferable: checked })}
+									onCheckedChange={(checked) => handleFormChange('isTransferable', checked)}
 									disabled={isSubmitting}
 								/>
 							</div>
