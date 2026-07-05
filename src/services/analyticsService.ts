@@ -104,11 +104,10 @@ export async function fetchAnalytics(params?: AnalyticsFilterParams): Promise<An
 
 	const suffix = query.toString() ? `?${query.toString()}` : '';
 
-	const response = await authenticatedFetch<AnalyticsResponse>(`/analytics${suffix}`, {
+	const response = await authenticatedFetch<AnalyticsMetrics>(`/analytics${suffix}`, {
 		method: 'GET',
 	});
-
-	return response.data;
+	return response;
 }
 
 // Export analytics data (for reports)

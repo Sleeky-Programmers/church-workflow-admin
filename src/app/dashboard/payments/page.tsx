@@ -155,7 +155,6 @@ export default function PaymentsPage() {
 			setTotalItems(paymentsData.pagination?.itemCount || paymentsData.data.length);
 			setPaginationData(paymentsData.pagination);
 		} catch (err) {
-			console.error('Failed to fetch payments:', err);
 			setTableError(err instanceof Error ? err.message : 'Failed to load payments');
 			toast({
 				title: 'Error',

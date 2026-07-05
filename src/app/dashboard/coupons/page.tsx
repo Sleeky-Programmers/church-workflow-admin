@@ -1,7 +1,7 @@
 'use client';
 
 import { format } from 'date-fns';
-import { AlertCircle, Calendar, CheckCircle, Copy, DollarSign, Edit, Gift, Percent, Plus, Search, Tag, Trash2, Users, XCircle } from 'lucide-react';
+import { AlertCircle, Calendar, CheckCircle, Copy, DollarSign, Edit, Gift, Percent, Plus, Search, Tag, Trash2, Users, X, XCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import {
@@ -27,23 +27,62 @@ import Heading from '@/components/ui/typography/Heading';
 import { Text } from '@/components/ui/typography/Text';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { Coupon, CouponStats, createCoupon, deleteCoupon, DiscountType, fetchCoupons, fetchCouponStats, updateCoupon } from '@/services/couponService';
+import {
+	Coupon,
+	CouponStats,
+	CouponStatus,
+	CouponType,
+	createCoupon,
+	CreateCouponPayload,
+	deleteCoupon,
+	DiscountType,
+	fetchCoupons,
+	fetchCouponStats,
+	PlanType,
+	toggleCouponStatus,
+	updateCoupon,
+	UpdateCouponPayload,
+} from '@/services/couponService';
 
 const typeConfig = {
 	FLAT: { label: 'Fixed Amount', icon: DollarSign, suffix: 'off' },
 	PERCENTAGE: { label: 'Percentage', icon: Percent, suffix: '%' },
 };
 
-const statusConfig = {
+const couponTypeOptions: { value: CouponType; label: string }[] = [
+	{ value: 'WELCOME_COUPON', label: 'Welcome Coupon' },
+	{ value: 'FIRST_FREE', label: 'First Free' },
+	{ value: 'GROWTH_25', label: 'Growth 25' },
+	{ value: 'ENTERPRISE_50K', label: 'Enterprise 50K' },
+	{ value: 'BLACK_FRIDAY', label: 'Black Friday' },
+	{ value: 'BULK_10', label: 'Bulk 10' },
+	{ value: 'SAVE_15', label: 'Save 15' },
+	{ value: 'CUSTOM', label: 'Custom' },
+];
+
+const planOptions: { value: PlanType; label: string }[] = [
+	{ value: 'STARTER', label: 'Starter' },
+	{ value: 'GROWTH', label: 'Growth' },
+	{ value: 'EXPANSION', label: 'Expansion' },
+	{ value: 'ENTERPRISE', label: 'Enterprise' },
+];
+
+const statusConfig: Record<string, { label: string; icon: any; class: string }> = {
 	active: { label: 'Active', icon: CheckCircle, class: 'bg-green-100 text-green-700' },
 	inactive: { label: 'Inactive', icon: XCircle, class: 'bg-gray-100 text-gray-700' },
 	expired: { label: 'Expired', icon: AlertCircle, class: 'bg-red-100 text-red-700' },
 	exhausted: { label: 'Exhausted', icon: XCircle, class: 'bg-yellow-100 text-yellow-700' },
+	draft: { label: 'Draft', icon: Edit, class: 'bg-gray-100 text-gray-700' },
+	expiring_soon: { label: 'Expiring Soon', icon: AlertCircle, class: 'bg-amber-100 text-amber-700' },
+	disabled: { label: 'Disabled', icon: XCircle, class: 'bg-gray-100 text-gray-700' },
+	fully_used: { label: 'Fully Used', icon: XCircle, class: 'bg-yellow-100 text-yellow-700' },
+	published: { label: 'Published', icon: CheckCircle, class: 'bg-blue-100 text-blue-700' },
 };
 
 export default function CouponsPage() {
 	const [searchQuery, setSearchQuery] = useState('');
 	const [statusFilter, setStatusFilter] = useState('all');
+	const [typeFilter, setTypeFilter] = useState('all');
 	const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 	const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 	const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -52,21 +91,27 @@ export default function CouponsPage() {
 	const [couponStats, setCouponStats] = useState<CouponStats | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
-	const [isSubmitting, setIsSubmitting] = useState(false); // Add this state
+	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [formError, setFormError] = useState<string | null>(null);
 	const { toast } = useToast();
 
-	// Form state
 	const [formData, setFormData] = useState({
 		code: '',
+		type: 'CUSTOM' as CouponType,
 		discountType: 'FLAT' as DiscountType,
 		discount: '',
 		description: '',
+		validFrom: '',
 		expiryDate: '',
 		maxUsage: '',
+		minPlanTier: '' as PlanType | '',
+		excludedPlans: [] as PlanType[],
+		isStackable: false,
+		isTransferable: false,
 		isActive: true,
+		status: 'ACTIVE' as CouponStatus,
 	});
 
-	// Fetch coupons and stats on load
 	useEffect(() => {
 		fetchCouponsData();
 	}, []);
@@ -100,47 +145,68 @@ export default function CouponsPage() {
 		let matchesStatus = true;
 		if (statusFilter === 'active') {
 			matchesStatus =
-				coupon.isActive && (!coupon.expiryDate || new Date(coupon.expiryDate) > new Date()) && (coupon.maxUsage === null || coupon.usageCount < coupon.maxUsage);
+				coupon.isActive && (!coupon.expiryDate || new Date(coupon.expiryDate) > new Date()) && (coupon.maxUsage === 0 || coupon.usageCount < coupon.maxUsage);
 		} else if (statusFilter === 'inactive') {
 			matchesStatus = !coupon.isActive;
 		} else if (statusFilter === 'expired') {
 			matchesStatus = coupon.expiryDate ? new Date(coupon.expiryDate) <= new Date() : false;
 		} else if (statusFilter === 'exhausted') {
-			matchesStatus = coupon.maxUsage !== null && coupon.usageCount >= coupon.maxUsage;
+			matchesStatus = coupon.maxUsage > 0 && coupon.usageCount >= coupon.maxUsage;
+		} else if (statusFilter === 'draft') {
+			matchesStatus = coupon.status === 'DRAFT';
+		} else if (statusFilter === 'expiring_soon') {
+			matchesStatus = coupon.status === 'EXPIRING_SOON';
+		} else if (statusFilter === 'fully_used') {
+			matchesStatus = coupon.status === 'FULLY_USED';
 		}
 
-		return matchesSearch && matchesStatus;
+		let matchesType = true;
+		if (typeFilter !== 'all') {
+			matchesType = coupon.type === typeFilter;
+		}
+
+		return matchesSearch && matchesStatus && matchesType;
 	});
 
-	// Stats calculations from real data
 	const activeCoupons = couponStats?.activeCoupons || 0;
 	const totalUsage = couponStats?.totalUsage || 0;
 	const expiringSoon = couponStats?.expiringSoon || 0;
 
+	const buildCouponPayload = (data: typeof formData): CreateCouponPayload => {
+		const payload: CreateCouponPayload = {
+			code: data.code.toUpperCase(),
+			type: data.type,
+			discountType: data.discountType,
+			discount: parseFloat(data.discount),
+			description: data.description || '',
+			expiryDate: data.expiryDate,
+			isStackable: data.isStackable,
+			isTransferable: data.isTransferable,
+			isActive: data.isActive,
+			status: data.status,
+		};
+
+		if (data.validFrom) payload.validFrom = data.validFrom;
+		if (data.maxUsage) payload.maxUsage = parseInt(data.maxUsage);
+		if (data.minPlanTier) {
+			payload.minPlanTier = data.minPlanTier as PlanType;
+		}
+		if (data.excludedPlans.length > 0) payload.excludedPlans = data.excludedPlans;
+
+		return payload;
+	};
+
 	const handleCreateCoupon = async () => {
-		if (!formData.code || !formData.discount) {
-			toast({
-				title: 'Validation Error',
-				description: 'Please fill in all required fields',
-				variant: 'destructive',
-			});
+		if (!formData.code || !formData.discount || !formData.expiryDate) {
+			setFormError('Please fill in all required fields');
 			return;
 		}
 
-		setIsSubmitting(true); // Disable button
+		setFormError(null);
+		setIsSubmitting(true);
 		try {
-			const payload = {
-				code: formData.code.toUpperCase(),
-				discountType: formData.discountType,
-				discount: parseFloat(formData.discount),
-				description: formData.description || undefined,
-				expiryDate: formData.expiryDate || undefined,
-				maxUsage: formData.maxUsage ? parseInt(formData.maxUsage) : undefined,
-				isActive: formData.isActive,
-			};
-
+			const payload = buildCouponPayload(formData);
 			const newCoupon = await createCoupon(payload);
-			console.log(newCoupon);
 			setCoupons([newCoupon, ...coupons]);
 			toast({
 				title: 'Coupon Created',
@@ -148,34 +214,39 @@ export default function CouponsPage() {
 			});
 			setIsCreateModalOpen(false);
 			resetForm();
-			fetchCouponsData(); // Refresh stats
-		} catch (err) {
+			await fetchCouponsData();
+		} catch (err: any) {
 			console.error('Failed to create coupon:', err);
-			toast({
-				title: 'Error',
-				description: err instanceof Error ? err.message : 'Failed to create coupon',
-				variant: 'destructive',
-			});
+			// Extract error message
+			let errorMessage = 'Failed to create coupon. Please try again.';
+			if (err?.message) {
+				errorMessage = err.message;
+			} else if (err?.response?.data?.message) {
+				const apiMessage = err.response.data.message;
+				if (Array.isArray(apiMessage)) {
+					errorMessage = apiMessage.join(', ');
+				} else {
+					errorMessage = apiMessage;
+				}
+			} else if (typeof err === 'string') {
+				errorMessage = err;
+			}
+			setFormError(errorMessage);
 		} finally {
-			setIsSubmitting(false); // Re-enable button
+			setIsSubmitting(false);
 		}
 	};
 
 	const handleEditCoupon = async () => {
-		if (!selectedCoupon) return;
+		if (!selectedCoupon) {
+			setFormError('No coupon selected for editing');
+			return;
+		}
 
-		setIsSubmitting(true); // Disable button
+		setFormError(null);
+		setIsSubmitting(true);
 		try {
-			const payload = {
-				code: formData.code.toUpperCase(),
-				discountType: formData.discountType,
-				discount: parseFloat(formData.discount),
-				description: formData.description || undefined,
-				expiryDate: formData.expiryDate || undefined,
-				maxUsage: formData.maxUsage ? parseInt(formData.maxUsage) : undefined,
-				isActive: formData.isActive,
-			};
-
+			const payload = buildCouponPayload(formData);
 			const updatedCoupon = await updateCoupon(selectedCoupon.id, payload);
 			setCoupons(coupons.map((c) => (c.id === selectedCoupon.id ? updatedCoupon : c)));
 			toast({
@@ -184,23 +255,39 @@ export default function CouponsPage() {
 			});
 			setIsEditModalOpen(false);
 			resetForm();
-			fetchCouponsData(); // Refresh stats
-		} catch (err) {
+			await fetchCouponsData();
+		} catch (err: any) {
 			console.error('Failed to update coupon:', err);
-			toast({
-				title: 'Error',
-				description: err instanceof Error ? err.message : 'Failed to update coupon',
-				variant: 'destructive',
-			});
+			let errorMessage = 'Failed to update coupon. Please try again.';
+			if (err?.message) {
+				errorMessage = err.message;
+			} else if (err?.response?.data?.message) {
+				const apiMessage = err.response.data.message;
+				if (Array.isArray(apiMessage)) {
+					errorMessage = apiMessage.join(', ');
+				} else {
+					errorMessage = apiMessage;
+				}
+			} else if (typeof err === 'string') {
+				errorMessage = err;
+			}
+			setFormError(errorMessage);
 		} finally {
-			setIsSubmitting(false); // Re-enable button
+			setIsSubmitting(false);
 		}
 	};
 
 	const handleDeleteCoupon = async () => {
-		if (!selectedCoupon) return;
+		if (!selectedCoupon) {
+			toast({
+				title: 'Error',
+				description: 'No coupon selected for deletion',
+				variant: 'destructive',
+			});
+			return;
+		}
 
-		setIsSubmitting(true); // Disable button
+		setIsSubmitting(true);
 		try {
 			await deleteCoupon(selectedCoupon.id);
 			setCoupons(coupons.filter((coupon) => coupon.id !== selectedCoupon.id));
@@ -210,7 +297,7 @@ export default function CouponsPage() {
 			});
 			setIsDeleteDialogOpen(false);
 			setSelectedCoupon(null);
-			fetchCouponsData(); // Refresh stats
+			await fetchCouponsData();
 		} catch (err) {
 			console.error('Failed to delete coupon:', err);
 			toast({
@@ -219,20 +306,20 @@ export default function CouponsPage() {
 				variant: 'destructive',
 			});
 		} finally {
-			setIsSubmitting(false); // Re-enable button
+			setIsSubmitting(false);
 		}
 	};
 
 	const handleToggleStatus = async (coupon: Coupon) => {
 		try {
 			const newStatus = !coupon.isActive;
-			const updatedCoupon = await updateCoupon(coupon.id, { isActive: newStatus });
+			const updatedCoupon = await toggleCouponStatus(coupon.id, newStatus);
 			setCoupons(coupons.map((c) => (c.id === coupon.id ? updatedCoupon : c)));
 			toast({
 				title: newStatus ? 'Coupon Activated' : 'Coupon Deactivated',
 				description: `${coupon.code} has been ${newStatus ? 'activated' : 'deactivated'}.`,
 			});
-			fetchCouponsData(); // Refresh stats
+			await fetchCouponsData();
 		} catch (err) {
 			console.error('Failed to toggle coupon status:', err);
 			toast({
@@ -253,14 +340,22 @@ export default function CouponsPage() {
 
 	const openEditModal = (coupon: Coupon) => {
 		setSelectedCoupon(coupon);
+		setFormError(null);
 		setFormData({
 			code: coupon.code,
+			type: coupon.type,
 			discountType: coupon.discountType,
 			discount: coupon.discount.toString(),
 			description: coupon.description || '',
+			validFrom: coupon.validFrom ? coupon.validFrom.split('T')[0] : '',
 			expiryDate: coupon.expiryDate ? coupon.expiryDate.split('T')[0] : '',
 			maxUsage: coupon.maxUsage?.toString() || '',
+			minPlanTier: coupon.minPlanTier || '',
+			excludedPlans: coupon.excludedPlans || [],
+			isStackable: coupon.isStackable,
+			isTransferable: coupon.isTransferable,
 			isActive: coupon.isActive,
+			status: coupon.status,
 		});
 		setIsEditModalOpen(true);
 	};
@@ -268,14 +363,22 @@ export default function CouponsPage() {
 	const resetForm = () => {
 		setFormData({
 			code: '',
+			type: 'CUSTOM',
 			discountType: 'FLAT',
 			discount: '',
 			description: '',
+			validFrom: '',
 			expiryDate: '',
 			maxUsage: '',
+			minPlanTier: '',
+			excludedPlans: [],
+			isStackable: false,
+			isTransferable: false,
 			isActive: true,
+			status: 'ACTIVE',
 		});
 		setSelectedCoupon(null);
+		setFormError(null);
 	};
 
 	const formatDate = (dateString: string | null) => {
@@ -290,10 +393,15 @@ export default function CouponsPage() {
 		return `₦${coupon.discount.toLocaleString()} off`;
 	};
 
-	const getCouponStatus = (coupon: Coupon): 'active' | 'inactive' | 'expired' | 'exhausted' => {
+	const getCouponStatus = (coupon: Coupon): string => {
 		if (!coupon.isActive) return 'inactive';
+		if (coupon.status === 'DRAFT') return 'draft';
+		if (coupon.status === 'EXPIRING_SOON') return 'expiring_soon';
+		if (coupon.status === 'FULLY_USED') return 'fully_used';
+		if (coupon.status === 'DISABLED') return 'disabled';
+		if (coupon.status === 'PUBLISHED') return 'published';
 		if (coupon.expiryDate && new Date(coupon.expiryDate) <= new Date()) return 'expired';
-		if (coupon.maxUsage !== null && coupon.usageCount >= coupon.maxUsage) return 'exhausted';
+		if (coupon.maxUsage > 0 && coupon.usageCount >= coupon.maxUsage) return 'exhausted';
 		return 'active';
 	};
 
@@ -305,6 +413,23 @@ export default function CouponsPage() {
 		if (days < 0) return 'Expired';
 		if (days === 0) return 'Expires today';
 		return `${days} days left`;
+	};
+
+	const getCouponTypeLabel = (type: CouponType) => {
+		return couponTypeOptions.find((t) => t.value === type)?.label || type;
+	};
+
+	const handleExcludedPlanToggle = (plan: PlanType) => {
+		setFormData((prev) => ({
+			...prev,
+			excludedPlans: prev.excludedPlans.includes(plan) ? prev.excludedPlans.filter((p) => p !== plan) : [...prev.excludedPlans, plan],
+		}));
+	};
+
+	// Clear form error when user makes changes
+	const handleFormChange = (field: string, value: any) => {
+		setFormData((prev) => ({ ...prev, [field]: value }));
+		if (formError) setFormError(null);
 	};
 
 	if (loading) {
@@ -353,7 +478,6 @@ export default function CouponsPage() {
 
 	return (
 		<>
-			{/* Header */}
 			<div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
 				<div>
 					<Heading
@@ -366,14 +490,16 @@ export default function CouponsPage() {
 					/>
 				</div>
 				<Button
-					onClick={() => setIsCreateModalOpen(true)}
+					onClick={() => {
+						resetForm();
+						setIsCreateModalOpen(true);
+					}}
 					className="gap-2">
 					<Plus className="h-4 w-4" />
 					Create Coupon
 				</Button>
 			</div>
 
-			{/* Stats Cards from Real API */}
 			<div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
 				<Card className="rounded-2xl">
 					<CardContent className="pt-6">
@@ -464,7 +590,6 @@ export default function CouponsPage() {
 				</Card>
 			</div>
 
-			{/* Filters */}
 			<Card className="rounded-2xl mb-6">
 				<CardContent className="p-4">
 					<div className="flex flex-col sm:flex-row gap-4">
@@ -490,29 +615,48 @@ export default function CouponsPage() {
 								<SelectItem value="inactive">Inactive</SelectItem>
 								<SelectItem value="expired">Expired</SelectItem>
 								<SelectItem value="exhausted">Exhausted</SelectItem>
+								<SelectItem value="draft">Draft</SelectItem>
+								<SelectItem value="expiring_soon">Expiring Soon</SelectItem>
+								<SelectItem value="fully_used">Fully Used</SelectItem>
+							</SelectContent>
+						</Select>
+
+						<Select
+							value={typeFilter}
+							onValueChange={setTypeFilter}>
+							<SelectTrigger className="w-[160px]">
+								<SelectValue placeholder="All Types" />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="all">All Types</SelectItem>
+								{couponTypeOptions.map((type) => (
+									<SelectItem
+										key={type.value}
+										value={type.value}>
+										{type.label}
+									</SelectItem>
+								))}
 							</SelectContent>
 						</Select>
 					</div>
 				</CardContent>
 			</Card>
 
-			{/* Coupons Grid */}
 			<div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
 				{filteredCoupons.map((coupon) => {
 					const TypeIcon = typeConfig[coupon.discountType]?.icon || Percent;
 					const status = getCouponStatus(coupon);
-					const statusInfo = statusConfig[status];
+					const statusInfo = statusConfig[status] || statusConfig.inactive;
 					const daysRemaining = getDaysRemaining(coupon.expiryDate);
 					const isExpiringSoon =
 						status === 'active' && daysRemaining !== 'Expired' && daysRemaining !== 'Expires today' && daysRemaining !== 'No expiry' && parseInt(daysRemaining) <= 30;
-					const usagePercentage = coupon.maxUsage ? (coupon.usageCount / coupon.maxUsage) * 100 : 0;
+					const usagePercentage = coupon.maxUsage > 0 ? (coupon.usageCount / coupon.maxUsage) * 100 : 0;
 
 					return (
 						<Card
 							key={coupon.id}
 							className="rounded-2xl hover:shadow-md transition-shadow">
 							<CardContent className="p-5">
-								{/* Header */}
 								<div className="flex items-start justify-between mb-3">
 									<div className="flex-1">
 										<div className="flex items-center gap-2 mb-1">
@@ -525,13 +669,20 @@ export default function CouponsPage() {
 												<Copy className="h-3.5 w-3.5" />
 											</Button>
 										</div>
-										{coupon.description && (
-											<Text
-												text={coupon.description}
-												variant="muted"
-												className="text-xs"
-											/>
-										)}
+										<div className="flex items-center gap-2">
+											<Badge
+												variant="outline"
+												className="text-xs">
+												{getCouponTypeLabel(coupon.type)}
+											</Badge>
+											{coupon.description && (
+												<Text
+													text={coupon.description}
+													variant="muted"
+													className="text-xs"
+												/>
+											)}
+										</div>
 									</div>
 									<span className={cn('inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium', statusInfo?.class)}>
 										{statusInfo && <statusInfo.icon className="h-3 w-3" />}
@@ -539,28 +690,31 @@ export default function CouponsPage() {
 									</span>
 								</div>
 
-								{/* Value Badge */}
 								<div className="flex items-center gap-2 mb-4">
 									<div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-primary-50 rounded-lg">
 										<TypeIcon className="h-3.5 w-3.5 text-primary-600" />
 										<span className="text-sm font-semibold text-primary-700">{formatValue(coupon)}</span>
 									</div>
+									{coupon.minPlanTier && (
+										<div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-50 rounded-lg">
+											<span className="text-xs font-medium text-blue-700">Min: {coupon.minPlanTier}</span>
+										</div>
+									)}
 								</div>
 
-								{/* Stats */}
 								<div className="space-y-2 mb-4">
 									<div className="flex justify-between text-sm">
 										<Text
 											text="Usage"
 											variant="muted"
 										/>
-										<Text text={`${coupon.usageCount} / ${coupon.maxUsage === null ? '∞' : coupon.maxUsage}`} />
+										<Text text={`${coupon.usageCount} / ${coupon.maxUsage === 0 ? '∞' : coupon.maxUsage}`} />
 									</div>
-									{coupon.maxUsage && (
+									{coupon.maxUsage > 0 && (
 										<div className="w-full bg-gray-100 rounded-full h-1.5">
 											<div
 												className="bg-primary-600 h-1.5 rounded-full transition-all"
-												style={{ width: `${usagePercentage}%` }}
+												style={{ width: `${Math.min(usagePercentage, 100)}%` }}
 											/>
 										</div>
 									)}
@@ -577,32 +731,40 @@ export default function CouponsPage() {
 											className={cn('text-xs', isExpiringSoon ? 'text-amber-600' : 'text-gray-500')}
 										/>
 									</div>
+									{coupon.validFrom && (
+										<div className="flex items-center gap-1 text-xs">
+											<Calendar className="h-3 w-3 text-gray-400" />
+											<Text
+												text={`Valid from: ${formatDate(coupon.validFrom)}`}
+												variant="muted"
+											/>
+										</div>
+									)}
 								</div>
 
 								<Separator className="my-3" />
 
-								{/* Actions */}
 								<div className="flex items-center justify-end gap-2">
 									<div className="flex items-center gap-2 mr-auto">
 										<Switch
-											checked={status === 'active'}
+											checked={status === 'active' || status === 'published'}
 											onCheckedChange={() => handleToggleStatus(coupon)}
-											disabled={status === 'expired' || status === 'exhausted'}
+											disabled={status === 'expired' || status === 'exhausted' || status === 'fully_used'}
 										/>
 										<Text
-											text={status === 'active' ? 'Active' : 'Inactive'}
+											text={status === 'active' || status === 'published' ? 'Active' : 'Inactive'}
 											variant="muted"
 											className="text-xs"
 										/>
 									</div>
-									{/* <Button
+									<Button
 										variant="ghost"
 										size="sm"
 										className="h-8 gap-1"
 										onClick={() => openEditModal(coupon)}>
 										<Edit className="h-3.5 w-3.5" />
 										Edit
-									</Button> */}
+									</Button>
 									<Button
 										variant="ghost"
 										size="sm"
@@ -630,13 +792,20 @@ export default function CouponsPage() {
 							className="text-gray-500"
 						/>
 						<Text
-							text={searchQuery || statusFilter !== 'all' ? 'Try adjusting your search or filters' : 'Create your first coupon to start offering discounts'}
+							text={
+								searchQuery || statusFilter !== 'all' || typeFilter !== 'all'
+									? 'Try adjusting your search or filters'
+									: 'Create your first coupon to start offering discounts'
+							}
 							variant="muted"
 							className="text-sm"
 						/>
-						{!searchQuery && statusFilter === 'all' && (
+						{!searchQuery && statusFilter === 'all' && typeFilter === 'all' && (
 							<Button
-								onClick={() => setIsCreateModalOpen(true)}
+								onClick={() => {
+									resetForm();
+									setIsCreateModalOpen(true);
+								}}
 								className="mt-4 gap-2">
 								<Plus className="h-4 w-4" />
 								Create Coupon
@@ -656,52 +825,89 @@ export default function CouponsPage() {
 						resetForm();
 					}
 				}}>
-				<DialogContent className="sm:max-w-[550px] max-h-[85vh] overflow-y-auto">
+				<DialogContent className="sm:max-w-[650px] max-h-[90vh] overflow-y-auto">
 					<DialogHeader>
 						<DialogTitle>{isCreateModalOpen ? 'Create New Coupon' : 'Edit Coupon'}</DialogTitle>
 						<DialogDescription>{isCreateModalOpen ? 'Create a discount coupon for churches to use' : 'Modify the coupon details below'}</DialogDescription>
 					</DialogHeader>
 
 					<div className="space-y-4 py-4">
-						{/* Coupon Code */}
-						<div>
-							<Label htmlFor="code">Coupon Code *</Label>
-							<Input
-								id="code"
-								placeholder="e.g., SUMMER20"
-								value={formData.code}
-								onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-								className="mt-1.5 font-mono"
-								maxLength={20}
-								disabled={isSubmitting}
-							/>
-							<Text
-								text="Only letters, numbers, and underscores"
-								variant="muted"
-								className="text-xs mt-1"
-							/>
+						{/* Error Alert */}
+						{formError && (
+							<div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+								<div className="flex-shrink-0 mt-0.5">
+									<AlertCircle className="h-4 w-4 text-red-500" />
+								</div>
+								<div className="flex-1 text-sm text-red-700 whitespace-pre-wrap">{formError}</div>
+								<Button
+									variant="ghost"
+									size="sm"
+									className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-100 flex-shrink-0"
+									onClick={() => setFormError(null)}>
+									<X className="h-4 w-4" />
+								</Button>
+							</div>
+						)}
+
+						<div className="grid grid-cols-2 gap-4">
+							<div>
+								<Label htmlFor="code">Coupon Code *</Label>
+								<Input
+									id="code"
+									placeholder="e.g., SUMMER20"
+									value={formData.code}
+									onChange={(e) => handleFormChange('code', e.target.value.toUpperCase())}
+									maxLength={20}
+									disabled={isSubmitting || isEditModalOpen}
+									// Show red border if there's an error and field is empty
+									className={cn('mt-1.5 font-mono', formError && !formData.code ? 'border-red-500' : '')}
+								/>
+								<Text
+									text="Only letters, numbers, and underscores"
+									variant="muted"
+									className="text-xs mt-1"
+								/>
+							</div>
+							<div>
+								<Label htmlFor="type">Coupon Type *</Label>
+								<Select
+									value={formData.type}
+									onValueChange={(value) => handleFormChange('type', value as CouponType)}
+									disabled={isSubmitting}>
+									<SelectTrigger className="mt-1.5">
+										<SelectValue placeholder="Select type" />
+									</SelectTrigger>
+									<SelectContent>
+										{couponTypeOptions.map((type) => (
+											<SelectItem
+												key={type.value}
+												value={type.value}>
+												{type.label}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</div>
 						</div>
 
-						{/* Description */}
 						<div>
 							<Label htmlFor="description">Description</Label>
 							<Input
 								id="description"
 								placeholder="What is this coupon for?"
 								value={formData.description}
-								onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+								onChange={(e) => handleFormChange('description', e.target.value)}
 								className="mt-1.5"
 								disabled={isSubmitting}
 							/>
 						</div>
 
-						{/* Type and Value */}
 						<div className="grid grid-cols-2 gap-4">
 							<div>
 								<Label htmlFor="discountType">Discount Type *</Label>
 								<Select
 									value={formData.discountType}
-									onValueChange={(value) => setFormData({ ...formData, discountType: value as DiscountType })}
+									onValueChange={(value) => handleFormChange('discountType', value as DiscountType)}
 									disabled={isSubmitting}>
 									<SelectTrigger className="mt-1.5">
 										<SelectValue placeholder="Select type" />
@@ -719,27 +925,42 @@ export default function CouponsPage() {
 									type="number"
 									placeholder={formData.discountType === 'PERCENTAGE' ? 'e.g., 20' : 'e.g., 5000'}
 									value={formData.discount}
-									onChange={(e) => setFormData({ ...formData, discount: e.target.value })}
+									onChange={(e) => handleFormChange('discount', e.target.value)}
+									className={cn('mt-1.5', formError && !formData.discount ? 'border-red-500' : '')}
+									disabled={isSubmitting}
+									min="0.01"
+									step="0.01"
+								/>
+							</div>
+						</div>
+
+						<div className="grid grid-cols-2 gap-4">
+							<div>
+								<Label htmlFor="validFrom">Valid From</Label>
+								<Input
+									id="validFrom"
+									type="date"
+									value={formData.validFrom}
+									onChange={(e) => handleFormChange('validFrom', e.target.value)}
 									className="mt-1.5"
+									disabled={isSubmitting}
+								/>
+							</div>
+							<div>
+								<Label htmlFor="expiryDate">Expiry Date *</Label>
+								<Input
+									id="expiryDate"
+									type="date"
+									value={formData.expiryDate}
+									onChange={(e) => handleFormChange('expiryDate', e.target.value)}
+									className={cn('mt-1.5', formError && !formData.expiryDate ? 'border-red-500' : '')}
+									min={new Date().toISOString().split('T')[0]}
 									disabled={isSubmitting}
 								/>
 							</div>
 						</div>
 
-						{/* Expiry Date and Usage Limit */}
 						<div className="grid grid-cols-2 gap-4">
-							<div>
-								<Label htmlFor="expiryDate">Expiry Date</Label>
-								<Input
-									id="expiryDate"
-									type="date"
-									value={formData.expiryDate}
-									onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
-									className="mt-1.5"
-									min={new Date().toISOString().split('T')[0]}
-									disabled={isSubmitting}
-								/>
-							</div>
 							<div>
 								<Label htmlFor="maxUsage">Usage Limit</Label>
 								<Input
@@ -747,29 +968,128 @@ export default function CouponsPage() {
 									type="number"
 									placeholder="Leave empty for unlimited"
 									value={formData.maxUsage}
-									onChange={(e) => setFormData({ ...formData, maxUsage: e.target.value })}
+									onChange={(e) => handleFormChange('maxUsage', e.target.value)}
 									className="mt-1.5"
+									disabled={isSubmitting}
+									min="0"
+								/>
+							</div>
+							<div>
+								<Label htmlFor="minPlanTier">Minimum Plan Tier</Label>
+								<Select
+									value={formData.minPlanTier || 'none'}
+									onValueChange={(value) => {
+										handleFormChange('minPlanTier', value === 'none' ? '' : (value as PlanType));
+									}}
+									disabled={isSubmitting}>
+									<SelectTrigger className="mt-1.5">
+										<SelectValue placeholder="No minimum" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="none">No minimum</SelectItem>
+										{planOptions.map((plan) => (
+											<SelectItem
+												key={plan.value}
+												value={plan.value}>
+												{plan.label}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+							</div>
+						</div>
+
+						<div>
+							<Label>Excluded Plans</Label>
+							<div className="flex flex-wrap gap-2 mt-1.5">
+								{planOptions.map((plan) => (
+									<Button
+										key={plan.value}
+										type="button"
+										variant={formData.excludedPlans.includes(plan.value) ? 'default' : 'outline'}
+										size="sm"
+										className="h-8"
+										onClick={() => handleExcludedPlanToggle(plan.value)}
+										disabled={isSubmitting}>
+										{plan.label}
+									</Button>
+								))}
+							</div>
+							<Text
+								text="Select plans that cannot use this coupon"
+								variant="muted"
+								className="text-xs mt-1"
+							/>
+						</div>
+
+						<div className="grid grid-cols-2 gap-4">
+							<div>
+								<Label htmlFor="status">Status</Label>
+								<Select
+									value={formData.status}
+									onValueChange={(value) => handleFormChange('status', value as CouponStatus)}
+									disabled={isSubmitting}>
+									<SelectTrigger className="mt-1.5">
+										<SelectValue placeholder="Select status" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="DRAFT">Draft</SelectItem>
+										<SelectItem value="PUBLISHED">Published</SelectItem>
+										<SelectItem value="ACTIVE">Active</SelectItem>
+									</SelectContent>
+								</Select>
+							</div>
+							<div className="flex items-center justify-between pt-6">
+								<div>
+									<Label htmlFor="isActive">Active Status</Label>
+									<Text
+										text="Inactive coupons cannot be used"
+										variant="muted"
+										className="text-xs"
+									/>
+								</div>
+								<Switch
+									id="isActive"
+									checked={formData.isActive}
+									onCheckedChange={(checked) => handleFormChange('isActive', checked)}
 									disabled={isSubmitting}
 								/>
 							</div>
 						</div>
 
-						{/* Active Status */}
-						<div className="flex items-center justify-between pt-2">
-							<div>
-								<Label htmlFor="isActive">Active Status</Label>
-								<Text
-									text="Inactive coupons cannot be used"
-									variant="muted"
-									className="text-xs"
+						<div className="grid grid-cols-2 gap-4">
+							<div className="flex items-center justify-between">
+								<div>
+									<Label htmlFor="isStackable">Stackable</Label>
+									<Text
+										text="Can be combined with other coupons"
+										variant="muted"
+										className="text-xs"
+									/>
+								</div>
+								<Switch
+									id="isStackable"
+									checked={formData.isStackable}
+									onCheckedChange={(checked) => handleFormChange('isStackable', checked)}
+									disabled={isSubmitting}
 								/>
 							</div>
-							<Switch
-								id="isActive"
-								checked={formData.isActive}
-								onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
-								disabled={isSubmitting}
-							/>
+							<div className="flex items-center justify-between">
+								<div>
+									<Label htmlFor="isTransferable">Transferable</Label>
+									<Text
+										text="Can be transferred to another church"
+										variant="muted"
+										className="text-xs"
+									/>
+								</div>
+								<Switch
+									id="isTransferable"
+									checked={formData.isTransferable}
+									onCheckedChange={(checked) => handleFormChange('isTransferable', checked)}
+									disabled={isSubmitting}
+								/>
+							</div>
 						</div>
 					</div>
 
@@ -802,7 +1122,6 @@ export default function CouponsPage() {
 				</DialogContent>
 			</Dialog>
 
-			{/* Delete Confirmation Dialog */}
 			<AlertDialog
 				open={isDeleteDialogOpen}
 				onOpenChange={setIsDeleteDialogOpen}>
