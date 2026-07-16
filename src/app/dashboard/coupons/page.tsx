@@ -1,47 +1,37 @@
 'use client';
 
 import { format } from 'date-fns';
-import { AlertCircle, Calendar, CheckCircle, Copy, DollarSign, Edit, Gift, Percent, Plus, Search, Tag, Trash2, Users, X, XCircle } from 'lucide-react';
+import {
+    AlertCircle, Calendar, CheckCircle, Copy, DollarSign, Edit, Gift, Percent, Plus, Search, Tag,
+    Trash2, Users, X, XCircle
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 
 import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
+    AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+    AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+    Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+    Select, SelectContent, SelectItem, SelectTrigger, SelectValue
+} from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import Heading from '@/components/ui/typography/Heading';
 import { Text } from '@/components/ui/typography/Text';
-import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import {
-	Coupon,
-	CouponStats,
-	CouponStatus,
-	CouponType,
-	createCoupon,
-	CreateCouponPayload,
-	deleteCoupon,
-	DiscountType,
-	fetchCoupons,
-	fetchCouponStats,
-	PlanType,
-	toggleCouponStatus,
-	updateCoupon,
-	UpdateCouponPayload,
+    Coupon, CouponStats, CouponStatus, CouponType, createCoupon, CreateCouponPayload, deleteCoupon,
+    DiscountType, fetchCoupons, fetchCouponStats, PlanType, toggleCouponStatus, updateCoupon,
+    UpdateCouponPayload
 } from '@/services/couponService';
 
 const typeConfig = {
@@ -93,7 +83,7 @@ export default function CouponsPage() {
 	const [error, setError] = useState<string | null>(null);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [formError, setFormError] = useState<string | null>(null);
-	const { toast } = useToast();
+	const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
 	const [formData, setFormData] = useState({
 		code: '',
@@ -126,11 +116,7 @@ export default function CouponsPage() {
 		} catch (err) {
 			console.error('Failed to fetch coupons:', err);
 			setError(err instanceof Error ? err.message : 'Failed to load coupons');
-			toast({
-				title: 'Error',
-				description: 'Failed to load coupons',
-				variant: 'destructive',
-			});
+			toast.error('Failed to load coupons');
 		} finally {
 			setLoading(false);
 		}
@@ -208,16 +194,12 @@ export default function CouponsPage() {
 			const payload = buildCouponPayload(formData);
 			const newCoupon = await createCoupon(payload);
 			setCoupons([newCoupon, ...coupons]);
-			toast({
-				title: 'Coupon Created',
-				description: `${newCoupon.code} has been created successfully.`,
-			});
+			toast.success(`${newCoupon.code} has been created successfully.`);
 			setIsCreateModalOpen(false);
 			resetForm();
 			await fetchCouponsData();
 		} catch (err: any) {
 			console.error('Failed to create coupon:', err);
-			// Extract error message
 			let errorMessage = 'Failed to create coupon. Please try again.';
 			if (err?.message) {
 				errorMessage = err.message;
@@ -249,15 +231,11 @@ export default function CouponsPage() {
 			const payload = buildCouponPayload(formData);
 			const updatedCoupon = await updateCoupon(selectedCoupon.id, payload);
 			setCoupons(coupons.map((c) => (c.id === selectedCoupon.id ? updatedCoupon : c)));
-			toast({
-				title: 'Coupon Updated',
-				description: `${selectedCoupon.code} has been updated successfully.`,
-			});
+			toast.success(`${selectedCoupon.code} has been updated successfully.`);
 			setIsEditModalOpen(false);
 			resetForm();
 			await fetchCouponsData();
 		} catch (err: any) {
-			console.error('Failed to update coupon:', err);
 			let errorMessage = 'Failed to update coupon. Please try again.';
 			if (err?.message) {
 				errorMessage = err.message;
@@ -279,11 +257,7 @@ export default function CouponsPage() {
 
 	const handleDeleteCoupon = async () => {
 		if (!selectedCoupon) {
-			toast({
-				title: 'Error',
-				description: 'No coupon selected for deletion',
-				variant: 'destructive',
-			});
+			toast.error('No coupon selected for deletion');
 			return;
 		}
 
@@ -291,20 +265,13 @@ export default function CouponsPage() {
 		try {
 			await deleteCoupon(selectedCoupon.id);
 			setCoupons(coupons.filter((coupon) => coupon.id !== selectedCoupon.id));
-			toast({
-				title: 'Coupon Deleted',
-				description: `${selectedCoupon.code} has been deleted.`,
-			});
+			toast.success(`${selectedCoupon.code} has been deleted.`);
 			setIsDeleteDialogOpen(false);
 			setSelectedCoupon(null);
 			await fetchCouponsData();
 		} catch (err) {
 			console.error('Failed to delete coupon:', err);
-			toast({
-				title: 'Error',
-				description: err instanceof Error ? err.message : 'Failed to delete coupon',
-				variant: 'destructive',
-			});
+			toast.error(err instanceof Error ? err.message : 'Failed to delete coupon');
 		} finally {
 			setIsSubmitting(false);
 		}
@@ -315,27 +282,38 @@ export default function CouponsPage() {
 			const newStatus = !coupon.isActive;
 			const updatedCoupon = await toggleCouponStatus(coupon.id, newStatus);
 			setCoupons(coupons.map((c) => (c.id === coupon.id ? updatedCoupon : c)));
-			toast({
-				title: newStatus ? 'Coupon Activated' : 'Coupon Deactivated',
-				description: `${coupon.code} has been ${newStatus ? 'activated' : 'deactivated'}.`,
-			});
+			toast.success(`${coupon.code} has been ${newStatus ? 'activated' : 'deactivated'}.`);
 			await fetchCouponsData();
 		} catch (err) {
 			console.error('Failed to toggle coupon status:', err);
-			toast({
-				title: 'Error',
-				description: err instanceof Error ? err.message : 'Failed to update coupon status',
-				variant: 'destructive',
-			});
+			toast.error(err instanceof Error ? err.message : 'Failed to update coupon status');
 		}
 	};
 
-	const handleCopyCode = (code: string) => {
-		navigator.clipboard.writeText(code);
-		toast({
-			title: 'Copied!',
-			description: `${code} copied to clipboard.`,
-		});
+	const handleCopyCode = async (code: string) => {
+		try {
+			if (navigator.clipboard && navigator.clipboard.writeText) {
+				await navigator.clipboard.writeText(code);
+			} else {
+				const textArea = document.createElement('textarea');
+				textArea.value = code;
+				textArea.style.position = 'fixed';
+				textArea.style.left = '-9999px';
+				textArea.style.top = '-9999px';
+				document.body.appendChild(textArea);
+				textArea.focus();
+				textArea.select();
+				document.execCommand('copy');
+				document.body.removeChild(textArea);
+			}
+
+			setCopiedCode(code);
+			setTimeout(() => {
+				setCopiedCode(null);
+			}, 2000);
+		} catch (error) {
+			console.error('Failed to copy:', error);
+		}
 	};
 
 	const openEditModal = (coupon: Coupon) => {
@@ -426,7 +404,6 @@ export default function CouponsPage() {
 		}));
 	};
 
-	// Clear form error when user makes changes
 	const handleFormChange = (field: string, value: any) => {
 		setFormData((prev) => ({ ...prev, [field]: value }));
 		if (formError) setFormError(null);
@@ -666,7 +643,7 @@ export default function CouponsPage() {
 												size="icon"
 												className="h-7 w-7"
 												onClick={() => handleCopyCode(coupon.code)}>
-												<Copy className="h-3.5 w-3.5" />
+												{copiedCode === coupon.code ? <CheckCircle className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
 											</Button>
 										</div>
 										<div className="flex items-center gap-2">
@@ -859,7 +836,6 @@ export default function CouponsPage() {
 									onChange={(e) => handleFormChange('code', e.target.value.toUpperCase())}
 									maxLength={20}
 									disabled={isSubmitting || isEditModalOpen}
-									// Show red border if there's an error and field is empty
 									className={cn('mt-1.5 font-mono', formError && !formData.code ? 'border-red-500' : '')}
 								/>
 								<Text
