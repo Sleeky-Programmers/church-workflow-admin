@@ -26,7 +26,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import Heading from '@/components/ui/typography/Heading';
 import { Text } from '@/components/ui/typography/Text';
-import { cn } from '@/lib/utils';
+import { cn, toSentenceCase } from '@/lib/utils';
 import { AnalyticsMetrics, fetchAnalytics } from '@/services/analyticsService';
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -270,10 +270,10 @@ export default function AnalyticsPage() {
 							<SelectValue placeholder="Time Range" />
 						</SelectTrigger>
 						<SelectContent>
-							<SelectItem value="daily">Last 30 Days</SelectItem>
-							<SelectItem value="weekly">Last 12 Weeks</SelectItem>
-							<SelectItem value="monthly">Last 12 Months</SelectItem>
-							<SelectItem value="yearly">Last 3 Years</SelectItem>
+							<SelectItem value="daily">Last Day</SelectItem>
+							<SelectItem value="weekly">Last Week</SelectItem>
+							<SelectItem value="monthly">Last Month</SelectItem>
+							<SelectItem value="yearly">Last Year</SelectItem>
 						</SelectContent>
 					</Select>
 					<Button
@@ -444,14 +444,14 @@ export default function AnalyticsPage() {
 									{planDistributionData.map((plan) => (
 										<div
 											key={plan.name}
-											className="flex items-center justify-between">
+											className="flex items-center justify-between gap-8">
 											<div className="flex items-center gap-2">
 												<div
 													className="w-3 h-3 rounded-full"
 													style={{ backgroundColor: plan.color }}
 												/>
 												<Text
-													text={plan.name}
+													text={toSentenceCase(plan.name)}
 													className="text-sm"
 												/>
 											</div>
