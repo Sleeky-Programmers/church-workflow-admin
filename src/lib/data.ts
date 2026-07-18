@@ -1,31 +1,16 @@
 import {
-	Activity,
-	Building2,
-	Calendar1,
-	CalendarCheck2,
-	ChartPie,
-	CheckCircle,
-	CreditCard,
-	DollarSign,
-	FileText,
-	Gift,
-	Inbox,
-	Layers,
-	LogOut,
-	MessagesSquare,
-	NotepadTextDashed,
-	Receipt,
-	Settings,
-	Tag,
-	TrendingUp,
-	UserPlus,
-	Users,
-	Wallet,
+    Activity, Building2, Calendar1, CalendarCheck2, ChartPie, CheckCircle, CreditCard, DollarSign,
+    FileText, Gift, Inbox, Layers, LogOut, MessagesSquare, NotepadTextDashed, Receipt, Settings,
+    Tag, TrendingUp, UserPlus, Users, Wallet
 } from 'lucide-react';
 
-import { ActivityRow, DepartmentRow, MemberAttendanceRecord, MemberProfile, RegularService, Role } from '@/types';
+import {
+    ActivityRow, DepartmentRow, MemberAttendanceRecord, MemberProfile, RegularService, Role
+} from '@/types';
 
-import { EventCategory, Gender, MaritalStatus, MembershipStatus, MemberTitle, RequisitionStatus } from './enums';
+import {
+    EventCategory, Gender, MaritalStatus, MembershipStatus, MemberTitle, RequisitionStatus
+} from './enums';
 
 export const DEFAULT_ORDER = ['Opening Prayer', 'Praise and Worship', 'Bible Reading', 'Sermon', 'Offering', 'Closing Prayer'];
 
@@ -351,7 +336,7 @@ export const AdminSidebarData = {
 	footer: [
 		{
 			title: 'Settings',
-			url: '/dashboard/settings',
+			url: '/dashboard/settings/profile',
 			icon: Settings,
 		},
 		// Activity Log - commented out for now, can be re-added later

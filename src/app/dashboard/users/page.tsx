@@ -1,38 +1,35 @@
 'use client';
 
-import { Activity, Building2, CheckCircle, Crown, Loader2, Lock, Mail, Search, Unlock, User, UserCheck, UserCog, Users, UserX } from 'lucide-react';
+import {
+    Activity, Building2, CheckCircle, Crown, Loader2, Lock, Mail, Search, Unlock, User, UserCheck,
+    UserCog, Users, UserX, X
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
+    AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+    AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
 } from '@/components/ui/alert-dialog';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+    Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+    Select, SelectContent, SelectItem, SelectTrigger, SelectValue
+} from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import Heading from '@/components/ui/typography/Heading';
 import { Span, Text } from '@/components/ui/typography/Text';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import {
-	fetchMemberDetailsForManagement,
-	fetchMemberManagementStats,
-	fetchMembersForManagement,
-	MemberDetailsResponse,
-	MemberManagementData,
-	MemberStatsResponse,
-	updateMemberStatus,
+    fetchMemberDetailsForManagement, fetchMemberManagementStats, fetchMembersForManagement,
+    MemberDetailsResponse, MemberManagementData, MemberStatsResponse, updateMemberStatus
 } from '@/services/memberService';
+import { useSearchStore } from '@/stores/useSearchStore';
 
 const roleBadgeClass: Record<string, string> = {
 	'Leader': 'bg-purple-100 text-purple-700',
@@ -53,7 +50,12 @@ const roleIcon: Record<string, JSX.Element> = {
 
 export default function UsersPage() {
 	const { toast } = useToast();
-	const [searchQuery, setSearchQuery] = useState('');
+
+	// Use search store for global search state
+	const { searchQuery, setSearchQuery, clearSearch } = useSearchStore();
+
+	// Local state for search input (syncs with store)
+	const [localSearch, setLocalSearch] = useState(searchQuery);
 	const [selectedChurchId, setSelectedChurchId] = useState<string>('all');
 	const [roleFilter, setRoleFilter] = useState<string>('all');
 	const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -77,6 +79,11 @@ export default function UsersPage() {
 	const [memberDetails, setMemberDetails] = useState<MemberDetailsResponse | null>(null);
 	const [loadingDetails, setLoadingDetails] = useState(false);
 
+	// Sync local search with global store when store changes
+	useEffect(() => {
+		setLocalSearch(searchQuery);
+	}, [searchQuery]);
+
 	// Load users with filters
 	const loadUsers = async () => {
 		setLoading(true);
@@ -87,7 +94,7 @@ export default function UsersPage() {
 				churchId: selectedChurchId,
 				status: statusFilter === 'active' ? true : statusFilter === 'blocked' ? false : undefined,
 				role: roleFilter !== 'all' ? roleFilter : undefined,
-				search: searchQuery || undefined,
+				search: searchQuery || undefined, // Use global search query
 			});
 
 			setUsers(response.data);
@@ -174,13 +181,13 @@ export default function UsersPage() {
 
 	// Handle view user
 	const handleViewUser = async (user: MemberManagementData) => {
-		setViewLoading(user.id); // Set loading for this specific user
+		setViewLoading(user.id);
 		setSelectedUser(user);
 		const church = churches.find((c) => c.id === user.churchId);
 		setSelectedChurch(church);
 		await loadMemberDetails(user.id);
 		setIsViewModalOpen(true);
-		setViewLoading(null); // Clear loading state
+		setViewLoading(null);
 	};
 
 	// Handle page change
@@ -191,6 +198,18 @@ export default function UsersPage() {
 	// Handle limit change
 	const handleLimitChange = (newLimit: number) => {
 		setPagination((prev) => ({ ...prev, limit: newLimit, page: 1 }));
+	};
+
+	// Handle local search change - syncs to global store
+	const handleLocalSearchChange = (value: string) => {
+		setLocalSearch(value);
+		setSearchQuery(value); // Update global store
+	};
+
+	// Handle clear search - syncs to global store
+	const handleClearSearch = () => {
+		setLocalSearch('');
+		clearSearch(); // Clear global store
 	};
 
 	// Initial load and when filters change
@@ -334,10 +353,20 @@ export default function UsersPage() {
 							<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
 							<Input
 								placeholder="Search by name or email..."
-								value={searchQuery}
-								onChange={(e) => setSearchQuery(e.target.value)}
-								className="pl-9"
+								value={localSearch}
+								onChange={(e) => handleLocalSearchChange(e.target.value)}
+								className="pl-9 pr-8"
 							/>
+							{localSearch && (
+								<Button
+									size="icon"
+									variant="ghost"
+									className="absolute right-0 top-0 h-full px-3 w-auto rounded-full hover:bg-transparent hover:scale-110"
+									onClick={handleClearSearch}
+									aria-label="Clear search">
+									<X className="size-4 text-muted-foreground hover:text-foreground transition-colors" />
+								</Button>
+							)}
 						</div>
 
 						<Select

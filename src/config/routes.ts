@@ -19,6 +19,7 @@ export enum Routes {
 	DepartmentEdit = '/dashboard/departments/[id]/edit',
 
 	Admin = '/dashboard/settings/users',
+	AdminProfile = '/dashboard/settings/profile',
 	UserManagement = '/dashboard/settings/users',
 	RolesPermissions = '/dashboard/settings/roles',
 	CreateRole = '/dashboard/settings/roles/create-role',
@@ -49,6 +50,7 @@ export const RouteConfig = {
 		search: Routes.Search,
 		admin: {
 			root: Routes.Admin,
+			profile: Routes.AdminProfile,
 			users: Routes.UserManagement,
 			roles: Routes.RolesPermissions,
 			preferences: Routes.Preferences,

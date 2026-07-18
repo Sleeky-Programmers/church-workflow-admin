@@ -30,9 +30,9 @@ import { Text } from '@/components/ui/typography/Text';
 import { cn } from '@/lib/utils';
 import {
     Coupon, CouponStats, CouponStatus, CouponType, createCoupon, CreateCouponPayload, deleteCoupon,
-    DiscountType, fetchCoupons, fetchCouponStats, PlanType, toggleCouponStatus, updateCoupon,
-    UpdateCouponPayload
+    DiscountType, fetchCoupons, fetchCouponStats, PlanType, toggleCouponStatus, updateCoupon
 } from '@/services/couponService';
+import { useSearchStore } from '@/stores/useSearchStore';
 
 const typeConfig = {
 	FLAT: { label: 'Fixed Amount', icon: DollarSign, suffix: 'off' },
@@ -70,7 +70,11 @@ const statusConfig: Record<string, { label: string; icon: any; class: string }> 
 };
 
 export default function CouponsPage() {
-	const [searchQuery, setSearchQuery] = useState('');
+	// Use search store for global search state
+	const { searchQuery, setSearchQuery, clearSearch } = useSearchStore();
+
+	// Local state for search input (syncs with store)
+	const [localSearch, setLocalSearch] = useState(searchQuery);
 	const [statusFilter, setStatusFilter] = useState('all');
 	const [typeFilter, setTypeFilter] = useState('all');
 	const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -102,15 +106,23 @@ export default function CouponsPage() {
 		status: 'ACTIVE' as CouponStatus,
 	});
 
+	// Sync local search with global store when store changes (from navbar)
+	useEffect(() => {
+		setLocalSearch(searchQuery);
+	}, [searchQuery]);
+
 	useEffect(() => {
 		fetchCouponsData();
-	}, []);
+	}, [searchQuery]);
 
 	const fetchCouponsData = async () => {
 		setLoading(true);
 		setError(null);
 		try {
-			const [couponsData, statsData] = await Promise.all([fetchCoupons({ limit: 100 }), fetchCouponStats()]);
+			const params: any = { limit: 100 };
+			if (searchQuery) params.search = searchQuery;
+
+			const [couponsData, statsData] = await Promise.all([fetchCoupons(params), fetchCouponStats()]);
 			setCoupons(couponsData.data);
 			setCouponStats(statsData);
 		} catch (err) {
@@ -122,12 +134,20 @@ export default function CouponsPage() {
 		}
 	};
 
-	const filteredCoupons = coupons.filter((coupon) => {
-		const matchesSearch =
-			!searchQuery ||
-			coupon.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-			(coupon.description && coupon.description.toLowerCase().includes(searchQuery.toLowerCase()));
+	// Handle local search change - syncs to global store
+	const handleLocalSearchChange = (value: string) => {
+		setLocalSearch(value);
+		setSearchQuery(value); // Update global store
+	};
 
+	// Handle clear search - syncs to global store
+	const handleClearSearch = () => {
+		setLocalSearch('');
+		clearSearch(); // Clear global store
+	};
+
+	const filteredCoupons = coupons.filter((coupon) => {
+		// Search is now handled by the API, but we keep client-side filtering for additional filters
 		let matchesStatus = true;
 		if (statusFilter === 'active') {
 			matchesStatus =
@@ -151,7 +171,7 @@ export default function CouponsPage() {
 			matchesType = coupon.type === typeFilter;
 		}
 
-		return matchesSearch && matchesStatus && matchesType;
+		return matchesStatus && matchesType;
 	});
 
 	const activeCoupons = couponStats?.activeCoupons || 0;
@@ -574,10 +594,20 @@ export default function CouponsPage() {
 							<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
 							<Input
 								placeholder="Search by coupon code or description..."
-								value={searchQuery}
-								onChange={(e) => setSearchQuery(e.target.value)}
-								className="pl-9"
+								value={localSearch}
+								onChange={(e) => handleLocalSearchChange(e.target.value)}
+								className="pl-9 pr-8"
 							/>
+							{localSearch && (
+								<Button
+									size="icon"
+									variant="ghost"
+									className="absolute right-0 top-0 h-full px-3 w-auto rounded-full hover:bg-transparent hover:scale-110"
+									onClick={handleClearSearch}
+									aria-label="Clear search">
+									<X className="size-4 text-muted-foreground hover:text-foreground transition-colors" />
+								</Button>
+							)}
 						</div>
 
 						<Select

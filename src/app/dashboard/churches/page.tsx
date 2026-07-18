@@ -1,35 +1,39 @@
 'use client';
 
-import { ChevronLeft, ChevronRight, Church as ChurchIcon, CreditCard, Lock, Mail, MapPin, Search, Unlock, UserCog, Users } from 'lucide-react';
+import {
+    ChevronLeft, ChevronRight, Church as ChurchIcon, CreditCard, Lock, Mail, MapPin, Search, Unlock,
+    UserCog, Users, X
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
+    AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+    AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
 } from '@/components/ui/alert-dialog';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+    Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+    Select, SelectContent, SelectItem, SelectTrigger, SelectValue
+} from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import Heading from '@/components/ui/typography/Heading';
 import { Text } from '@/components/ui/typography/Text';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { blockChurch, Church, fetchChurchById, fetchChurches, PlanType, SubscriptionStatus, unblockChurch } from '@/services/churchService';
+import {
+    blockChurch, Church, fetchChurchById, fetchChurches, PlanType, SubscriptionStatus, unblockChurch
+} from '@/services/churchService';
 import { validateCoupon } from '@/services/couponService';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { useSearchStore } from '@/stores/useSearchStore';
 
 // Helper function to get initials from church name
 const getInitials = (name: string) => {
@@ -92,7 +96,12 @@ interface PaginationState {
 export default function ChurchesPage() {
 	const { toast } = useToast();
 	const { user } = useAuthStore();
-	const [searchQuery, setSearchQuery] = useState('');
+
+	// Use search store for global search state
+	const { searchQuery, setSearchQuery, clearSearch } = useSearchStore();
+
+	// Local state for search input (syncs with store)
+	const [localSearch, setLocalSearch] = useState(searchQuery);
 	const [searchType, setSearchType] = useState<SearchType>('both');
 	const [planFilter, setPlanFilter] = useState<string>('all');
 	const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -122,10 +131,15 @@ export default function ChurchesPage() {
 	});
 	const [itemsPerPage, setItemsPerPage] = useState(20);
 
+	// Sync local search with global store when store changes (from navbar)
+	useEffect(() => {
+		setLocalSearch(searchQuery);
+	}, [searchQuery]);
+
 	// Fetch churches on load and when filters change
 	useEffect(() => {
 		fetchChurchesData();
-	}, [planFilter, statusFilter, pagination.page, pagination.limit]);
+	}, [planFilter, statusFilter, pagination.page, pagination.limit, searchQuery]);
 
 	const fetchChurchesData = async (showTableLoader = true) => {
 		if (showTableLoader) {
@@ -142,6 +156,7 @@ export default function ChurchesPage() {
 			};
 			if (planFilter !== 'all') params.plan = planFilter;
 			if (statusFilter !== 'all') params.subscriptionStatus = statusFilter;
+			if (searchQuery) params.search = searchQuery; // Use global search query
 
 			const response = await fetchChurches(params);
 			setChurches(response.data);
@@ -179,11 +194,24 @@ export default function ChurchesPage() {
 		}
 	};
 
-	// Search filtering (client-side)
-	const filteredChurches = churches.filter((church) => {
-		if (!searchQuery) return true;
+	// Handle local search change - syncs to global store
+	const handleLocalSearchChange = (value: string) => {
+		setLocalSearch(value);
+		setSearchQuery(value); // Update global store
+	};
 
-		const query = searchQuery.toLowerCase();
+	// Handle clear search - syncs to global store
+	const handleClearSearch = () => {
+		setLocalSearch('');
+		clearSearch(); // Clear global store
+	};
+
+	// Search filtering (client-side) - only used for the search type filter
+	// The API already handles the search query, but we keep client-side filtering for search type
+	const filteredChurches = churches.filter((church) => {
+		if (!localSearch) return true;
+
+		const query = localSearch.toLowerCase();
 
 		if (searchType === 'church') {
 			return church.name.toLowerCase().includes(query);
@@ -577,10 +605,20 @@ export default function ChurchesPage() {
 						placeholder={
 							searchType === 'church' ? 'Search by church name...' : searchType === 'location' ? 'Search by location...' : 'Search by church name or location...'
 						}
-						value={searchQuery}
-						onChange={(e) => setSearchQuery(e.target.value)}
-						className="pl-9"
+						value={localSearch}
+						onChange={(e) => handleLocalSearchChange(e.target.value)}
+						className="pl-9 pr-8"
 					/>
+					{localSearch && (
+						<Button
+							size="icon"
+							variant="ghost"
+							className="absolute right-0 top-0 h-full px-3 w-auto rounded-full hover:bg-transparent hover:scale-110"
+							onClick={handleClearSearch}
+							aria-label="Clear search">
+							<X className="size-4 text-muted-foreground hover:text-foreground transition-colors" />
+						</Button>
+					)}
 				</div>
 				<Select
 					value={searchType}

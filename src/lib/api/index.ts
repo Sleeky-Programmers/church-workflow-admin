@@ -1,19 +1,9 @@
 import { getInitials } from '@/lib/utils';
 import { ActivityLogApiResponse, Member, NotificationApiResponse, RegularService } from '@/types';
 import {
-	AdminRegisterPayload,
-	AdminRegisterResponse,
-	AttendanceStatsResponse,
-	CreateChurchPayload,
-	CreateWeeklyServicePayload,
-	GoogleAuthResponse,
-	LoginPayload,
-	LoginResponse,
-	ResetPasswordPayload,
-	ResetPasswordResponse,
-	SignupPayload,
-	VerifyOtpPayload,
-	VerifyOtpResponse,
+    AdminRegisterPayload, AdminRegisterResponse, AttendanceStatsResponse, CreateChurchPayload,
+    CreateWeeklyServicePayload, GoogleAuthResponse, LoginPayload, LoginResponse,
+    ResetPasswordPayload, ResetPasswordResponse, SignupPayload, VerifyOtpPayload, VerifyOtpResponse
 } from '@/types/payload';
 import { InviteFormData, PendingInvite, User, UserAction } from '@/types/user';
 
@@ -60,12 +50,12 @@ export async function authenticatedFetch<T>(endpoint: string, options: RequestIn
 			return retryResponse.json();
 		} catch (err) {
 			console.log(err);
-			localStorage.removeItem('accessToken');
-			localStorage.removeItem('refreshToken');
+			// localStorage.removeItem('accessToken');
+			// localStorage.removeItem('refreshToken');
 
-			if (!window.location.pathname.includes('/auth/login')) {
-				window.location.href = '/auth/login';
-			}
+			// if (!window.location.pathname.includes('/auth/login')) {
+			// 	window.location.href = '/auth/login';
+			// }
 
 			throw err;
 		}
@@ -116,10 +106,12 @@ export async function apiFetch<T>(endpoint: string, options: RequestInit): Promi
 
 	if (response.status === 401) {
 		if (typeof window !== 'undefined') {
-			localStorage.removeItem('accessToken');
-			if (!window.location.pathname.includes('/auth/login')) {
-				window.location.href = '/auth/login';
-			}
+			console.log('removed trigger');
+			console.log({ response: response });
+			// localStorage.removeItem('accessToken');
+			// if (!window.location.pathname.includes('/auth/login')) {
+			// 	window.location.href = '/auth/login';
+			// }
 		}
 		const message = typeof data === 'object' && data && 'message' in data ? String((data as { message?: unknown }).message || 'Unauthorized') : 'Unauthorized';
 		const error: any = new Error(message);
@@ -762,19 +754,19 @@ export function getCurrentAdmin() {
 }
 
 export async function fetchNotifications(): Promise<NotificationApiResponse> {
-	return await apiFetch('/notifications', {
+	return await apiFetch('/notifications/admin', {
 		method: 'GET',
 	});
 }
 
 export async function markNotificationAsRead(notificationId: string) {
-	return await apiFetch(`/notifications/${notificationId}/read`, {
+	return await apiFetch(`/notifications/${notificationId}/admin/read`, {
 		method: 'PUT',
 	});
 }
 
 export async function markAllNotificationsAsRead() {
-	return await apiFetch('/notifications/read-all', {
+	return await apiFetch('/notifications/admin/read-all', {
 		method: 'PUT',
 	});
 }
