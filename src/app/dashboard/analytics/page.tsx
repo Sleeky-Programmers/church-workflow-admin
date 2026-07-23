@@ -120,34 +120,30 @@ export default function AnalyticsPage() {
 
 	const avgRevenuePerChurch = totalChurches > 0 ? mrr / totalChurches : 0;
 
+	console.log({
+		plan: analyticsData?.planPerformanceBreakdown,
+		result: analyticsData?.planPerformanceBreakdown
+			? analyticsData.planPerformanceBreakdown
+					.filter((plan) => plan.churchesCount > 0)
+					.map((plan) => ({
+						name: plan.plan,
+						value: (plan.churchesCount / totalChurches) * 100, // Recalculate percentage from actual counts
+						color: plan.plan === 'ENTERPRISE' ? '#1D9E75' : plan.plan === 'GROWTH' ? '#378ADD' : plan.plan === 'EXPANSION' ? '#9B59B6' : '#EF9F27',
+						churches: plan.churchesCount,
+					}))
+			: [],
+	});
+
 	// Prepare plan distribution for pie chart
-	const planDistributionData = analyticsData?.planDistribution
-		? [
-				{
-					name: 'STARTER',
-					value: analyticsData.planDistribution.STARTER,
-					color: '#EF9F27',
-					churches: Math.round((analyticsData.planDistribution.STARTER / 100) * totalChurches),
-				},
-				{
-					name: 'GROWTH',
-					value: analyticsData.planDistribution.GROWTH,
-					color: '#378ADD',
-					churches: Math.round((analyticsData.planDistribution.GROWTH / 100) * totalChurches),
-				},
-				{
-					name: 'EXPANSION',
-					value: analyticsData.planDistribution.EXPANSION,
-					color: '#9B59B6',
-					churches: Math.round((analyticsData.planDistribution.EXPANSION / 100) * totalChurches),
-				},
-				{
-					name: 'ENTERPRISE',
-					value: analyticsData.planDistribution.ENTERPRISE,
-					color: '#1D9E75',
-					churches: Math.round((analyticsData.planDistribution.ENTERPRISE / 100) * totalChurches),
-				},
-			].filter((item) => item.value > 0)
+	const planDistributionData = analyticsData?.planPerformanceBreakdown
+		? analyticsData.planPerformanceBreakdown
+				.filter((plan) => plan.churchesCount > 0)
+				.map((plan) => ({
+					name: plan.plan,
+					value: (plan.churchesCount / totalChurches) * 100, // Recalculate percentage from actual counts
+					color: plan.plan === 'ENTERPRISE' ? '#1D9E75' : plan.plan === 'GROWTH' ? '#378ADD' : plan.plan === 'EXPANSION' ? '#9B59B6' : '#EF9F27',
+					churches: plan.churchesCount,
+				}))
 		: [];
 
 	const statsCards = [
@@ -662,7 +658,9 @@ export default function AnalyticsPage() {
 											</td>
 											<td className="py-3 px-4">{plan.churchesCount} churches</td>
 											<td className="py-3 px-4">{plan.membersCount.toLocaleString()}</td>
-											<td className="py-3 px-4 font-medium">{plan.monthlyRevenue === 0 ? 'Free' : `₦${Math.round(plan.monthlyRevenue).toLocaleString()}`}</td>
+											<td className="py-3 px-4 font-medium">
+												{plan.plan === 'STARTER' && plan.monthlyRevenue === 0 ? 'Free' : `₦${Math.round(plan.monthlyRevenue).toLocaleString()}`}
+											</td>
 											<td className="py-3 px-4">
 												{plan.growth !== '0%' && (
 													<div className={cn('flex items-center gap-1', plan.growth.startsWith('+') ? 'text-green-600' : 'text-red-600')}>

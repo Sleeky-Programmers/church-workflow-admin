@@ -1,9 +1,9 @@
 'use client';
 
-import { Bell, Search, Star, User, X } from 'lucide-react';
+import { ArrowLeft, Bell, Search, Star, User, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import { RouteConfig } from '@/config/routes';
 import { getCurrentUserProfile } from '@/lib/auth/session';
@@ -29,6 +29,8 @@ export function Navbar() {
 	const { searchQuery, setSearchQuery, clearSearch, updateURLSearch, syncFromURL, isSearching } = useSearchStore();
 
 	const [fallbackName, setFallbackName] = useState('John Doe');
+	const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+	const mobileInputRef = useRef<HTMLInputElement>(null);
 	const { toggleFavorite, isFavorite } = useFavoritesStore();
 	const { user } = useAuthStore();
 	const starred = isFavorite(pathname);
@@ -37,6 +39,13 @@ export function Navbar() {
 	useEffect(() => {
 		syncFromURL(searchParams);
 	}, [searchParams, syncFromURL]);
+
+	// Autofocus the input when the mobile search expands
+	useEffect(() => {
+		if (mobileSearchOpen) {
+			mobileInputRef.current?.focus();
+		}
+	}, [mobileSearchOpen]);
 
 	// Fetch user profile for fallback name
 	useEffect(() => {
@@ -91,23 +100,63 @@ export function Navbar() {
 		// 	e.preventDefault();
 		// 	handleSearch();
 		// }
-		// Escape key to clear search
+		// Escape key to clear/close search
 		if (e.key === 'Escape') {
-			handleClearSearch();
+			if (mobileSearchOpen) {
+				closeMobileSearch();
+			} else {
+				handleClearSearch();
+			}
 		}
 	};
 
-	// Handle search on mobile (opens search page)
-	const handleMobileSearch = () => {
-		if (!searchQuery.trim()) {
-			router.push(RouteConfig.dashboard.search);
-		} else {
-			router.push(`${RouteConfig.dashboard.search}?q=${encodeURIComponent(searchQuery)}`);
-		}
+	// Expand the mobile search input
+	const openMobileSearch = () => {
+		setMobileSearchOpen(true);
+	};
+
+	// Collapse the mobile search input and clear the query
+	const closeMobileSearch = () => {
+		setMobileSearchOpen(false);
+		clearSearch();
+		updateURLSearch(pathname, router);
 	};
 
 	return (
-		<header className="w-full flex items-center h-16 gap-2 px-3 md:px-6 border-b">
+		<header className="relative w-full flex items-center h-16 gap-2 px-3 md:px-6 border-b">
+			{/* Expanded mobile search overlay */}
+			{mobileSearchOpen && (
+				<div className="absolute inset-0 z-10 flex items-center gap-2 px-3 bg-background sm:hidden">
+					<Button
+						size="icon"
+						variant="ghost"
+						aria-label="Close search"
+						onClick={closeMobileSearch}>
+						<ArrowLeft className="w-4 h-4" />
+					</Button>
+					<div className="relative flex-1">
+						<Input
+							ref={mobileInputRef}
+							placeholder="Search..."
+							value={searchQuery}
+							onChange={handleSearchChange}
+							onKeyDown={handleKeyDown}
+							className="w-full pr-8"
+						/>
+						{searchQuery && (
+							<Button
+								size="icon"
+								variant="ghost"
+								className="absolute right-0 top-0 h-full px-3 w-auto rounded-full hover:bg-transparent hover:scale-110"
+								onClick={handleClearSearch}
+								aria-label="Clear search">
+								<X className="size-4 text-muted-foreground hover:text-foreground transition-colors" />
+							</Button>
+						)}
+					</div>
+				</div>
+			)}
+
 			<div className="flex items-center gap-2 min-w-0">
 				<SidebarTrigger className="-ml-1" />
 				<Button
@@ -149,7 +198,7 @@ export function Navbar() {
 					variant="ghost"
 					className="sm:hidden"
 					aria-label="Open search"
-					onClick={handleMobileSearch}>
+					onClick={openMobileSearch}>
 					<Search className="w-4 h-4" />
 				</Button>
 
