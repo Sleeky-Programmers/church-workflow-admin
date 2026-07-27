@@ -96,8 +96,11 @@ export default function AnalyticsPage() {
 		fetchAnalyticsData();
 	};
 
-	// Extract values from API response
-	const totalChurches = analyticsData?.totalChurches.count || 0;
+	// ✅ Calculate total churches from planPerformanceBreakdown summation
+	const totalChurchesFromPlans = analyticsData?.planPerformanceBreakdown ? analyticsData.planPerformanceBreakdown.reduce((sum, plan) => sum + plan.churchesCount, 0) : 0;
+
+	// Use the calculated total instead of API value
+	const totalChurches = totalChurchesFromPlans || 0;
 	const churchesGrowth = analyticsData?.totalChurches.growth || '0%';
 
 	const totalMembers = analyticsData?.members.total.count || 0;
@@ -120,21 +123,7 @@ export default function AnalyticsPage() {
 
 	const avgRevenuePerChurch = totalChurches > 0 ? mrr / totalChurches : 0;
 
-	console.log({
-		plan: analyticsData?.planPerformanceBreakdown,
-		result: analyticsData?.planPerformanceBreakdown
-			? analyticsData.planPerformanceBreakdown
-					.filter((plan) => plan.churchesCount > 0)
-					.map((plan) => ({
-						name: plan.plan,
-						value: (plan.churchesCount / totalChurches) * 100, // Recalculate percentage from actual counts
-						color: plan.plan === 'ENTERPRISE' ? '#1D9E75' : plan.plan === 'GROWTH' ? '#378ADD' : plan.plan === 'EXPANSION' ? '#9B59B6' : '#EF9F27',
-						churches: plan.churchesCount,
-					}))
-			: [],
-	});
-
-	// Prepare plan distribution for pie chart
+	// Prepare plan distribution for pie chart - using actual counts from planPerformanceBreakdown
 	const planDistributionData = analyticsData?.planPerformanceBreakdown
 		? analyticsData.planPerformanceBreakdown
 				.filter((plan) => plan.churchesCount > 0)
@@ -457,7 +446,7 @@ export default function AnalyticsPage() {
 													className="text-sm font-medium"
 												/>
 												<Text
-													text={`${plan.value}%`}
+													text={`${plan.value.toFixed(2)}%`}
 													variant="muted"
 													className="text-xs"
 												/>
