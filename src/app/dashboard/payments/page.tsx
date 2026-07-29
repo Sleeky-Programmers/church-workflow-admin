@@ -2,27 +2,29 @@
 
 import { format } from 'date-fns';
 import {
-    AlertCircle, ArrowLeftRight, Banknote, CheckCircle, ChevronLeft, ChevronRight, Clock,
-    CreditCard, Download, FileText, Plus, Receipt, RefreshCw, Search, Wallet, X, XCircle
+	AlertCircle,
+	ArrowLeftRight,
+	Banknote,
+	CheckCircle,
+	ChevronLeft,
+	ChevronRight,
+	Clock,
+	CreditCard,
+	FileText,
+	Receipt,
+	RefreshCw,
+	Search,
+	X,
+	XCircle,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import {
-    AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
-    AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
-} from '@/components/ui/alert-dialog';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-    Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle
-} from '@/components/ui/dialog';
+import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select, SelectContent, SelectItem, SelectTrigger, SelectValue
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import Heading from '@/components/ui/typography/Heading';
@@ -30,9 +32,7 @@ import { Text } from '@/components/ui/typography/Text';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Church, fetchChurches } from '@/services/churchService';
-import {
-    fetchPayments, fetchPaymentStats, Payment, PaymentStats, PaymentStatus, PlanType
-} from '@/services/paymentService';
+import { fetchPayments, fetchPaymentStats, Payment, PaymentStats, PaymentStatus, PlanType } from '@/services/paymentService';
 import { useSearchStore } from '@/stores/useSearchStore';
 
 const statusConfig: Record<PaymentStatus, { label: string; icon: any; class: string }> = {
@@ -43,20 +43,12 @@ const statusConfig: Record<PaymentStatus, { label: string; icon: any; class: str
 	CANCELLED: { label: 'Cancelled', icon: XCircle, class: 'bg-orange-100 text-orange-700' },
 };
 
-const paymentMethodConfig: Record<string, { label: string; icon: any }> = {
-	card: { label: 'Card', icon: CreditCard },
-	transfer: { label: 'Bank Transfer', icon: Banknote },
-	manual: { label: 'Manual Entry', icon: FileText },
-};
-
 const planOptionsList = [
 	{ value: 'STARTER', price: 0, currency: 'NGN' },
 	{ value: 'GROWTH', price: 200000, currency: 'NGN' },
 	{ value: 'EXPANSION', price: 500000, currency: 'NGN' },
 	{ value: 'ENTERPRISE', price: 1000000, currency: 'NGN' },
 ];
-
-const statusOptions = ['All Statuses', 'PENDING', 'SUCCESS', 'FAILED', 'REFUNDED', 'CANCELLED'];
 
 export default function PaymentsPage() {
 	const { toast } = useToast();
@@ -689,9 +681,10 @@ export default function PaymentsPage() {
 								</thead>
 								<tbody>
 									{filteredPayments.map((payment) => {
+										console.log('Rendering payment row for:', payment);
 										const StatusIcon = statusConfig[payment.status]?.icon || CheckCircle;
 										const statusInfo = statusConfig[payment.status] || statusConfig.SUCCESS;
-										const avatarColor = getAvatarColor(payment.churchName);
+										// const avatarColor = getAvatarColor(payment.churchName);
 
 										return (
 											<tr
@@ -704,9 +697,6 @@ export default function PaymentsPage() {
 												</td>
 												<td className="py-3 px-4">
 													<div className="flex items-center gap-3">
-														<Avatar className="h-8 w-8">
-															<AvatarFallback className={cn(avatarColor.bg, avatarColor.text)}>{getInitials(payment.churchName)}</AvatarFallback>
-														</Avatar>
 														<div>
 															<span className="font-medium">{payment.churchName}</span>
 														</div>
