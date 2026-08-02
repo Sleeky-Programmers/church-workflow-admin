@@ -7,6 +7,7 @@ import {
 import {
     ActivityRow, DepartmentRow, MemberAttendanceRecord, MemberProfile, RegularService, Role
 } from '@/types';
+import { ProductAdminModule } from '@/types/productAdmin';
 
 import {
     EventCategory, Gender, MaritalStatus, MembershipStatus, MemberTitle, RequisitionStatus
@@ -316,21 +317,25 @@ export const AdminSidebarData = {
 			title: 'Churches',
 			url: '/dashboard/churches',
 			icon: Building2,
+			permissionModule: ProductAdminModule.CHURCH_MANAGEMENT,
 		},
 		{
 			title: 'User Management',
 			url: '/dashboard/users',
 			icon: Users,
+			permissionModule: ProductAdminModule.USER_MANAGEMENT,
 		},
 		{
 			title: 'Payments',
 			url: '/dashboard/payments',
 			icon: Receipt,
+			permissionModule: ProductAdminModule.PAYMENT_MANAGEMENT,
 		},
 		{
 			title: 'Coupons',
 			url: '/dashboard/coupons',
 			icon: Gift,
+			permissionModule: ProductAdminModule.COUPON_MANAGEMENT,
 		},
 	],
 	footer: [

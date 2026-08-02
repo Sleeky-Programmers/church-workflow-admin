@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import {
 	Sidebar,
@@ -22,6 +22,7 @@ import { AdminSidebarData } from '@/lib/data';
 import { ActiveTab } from '@/lib/enums';
 import { cn } from '@/lib/utils';
 import { useFavoritesStore } from '@/stores/useFavoritesStore';
+import { useProductAdminStore } from '@/stores/useProductAdminStore';
 
 import { Span, Text } from '../ui/typography/Text';
 
@@ -30,6 +31,13 @@ export function AppSidebar() {
 	const [activeTab, setActiveTab] = useState<ActiveTab>(ActiveTab.FAVOURITES);
 	const { favorites } = useFavoritesStore();
 	const { isMobile, setOpenMobile } = useSidebar();
+	const { fetchAdminData, hasPermission } = useProductAdminStore();
+
+	useEffect(() => {
+		fetchAdminData();
+	}, [fetchAdminData]);
+
+	const visiblePages = AdminSidebarData.pages.filter((page) => !page.permissionModule || hasPermission(page.permissionModule));
 
 	const isActive = (url: string) => {
 		if (!url) return false;
@@ -120,7 +128,7 @@ export function AppSidebar() {
 
 					<SidebarGroupContent>
 						<SidebarMenu>
-							{AdminSidebarData.pages.map((page) => {
+							{visiblePages.map((page) => {
 								const active = isActive(page.url);
 								const Icon = page.icon;
 

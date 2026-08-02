@@ -5,12 +5,13 @@ import { persist } from 'zustand/middleware';
 import { getMyChurch } from '@/lib/api';
 import { getCurrentUserProfile } from '@/lib/auth/session';
 import { getProfile } from '@/services/userServices';
+import { hasProductAdminPermission, PermissionAction, ProductAdminModule, ProductAdminPermissions } from '@/types/productAdmin';
 
 export type ProductAdmin = {
 	_id: string;
 	name: string;
 	email: string;
-	role: { name: string };
+	role: { name: string; permissions?: ProductAdminPermissions };
 	status: string;
 	createdAt: string;
 	updatedAt: string;
@@ -41,6 +42,7 @@ type ProductAdminStore = {
 	setUser: (user: ProductAdmin | null) => void;
 	clearUserData: () => void;
 	getAdminFullName: () => string;
+	hasPermission: (module: ProductAdminModule, action?: PermissionAction) => boolean;
 };
 
 // Cache duration (5 minutes)
@@ -115,12 +117,18 @@ export const useProductAdminStore = create<ProductAdminStore>()(
 				}
 				return 'User';
 			},
+
+			// Check whether the logged-in admin's role grants a given permission
+			hasPermission: (module, action = 'read') => {
+				const { admin } = get();
+				return hasProductAdminPermission(admin?.role?.permissions, module, action);
+			},
 		}),
 		{
 			name: 'user-profile-storage',
 			// Only persist these fields
 			partialize: (state) => ({
-				user: state.admin,
+				admin: state.admin,
 				lastFetched: state.lastFetched,
 			}),
 		}
