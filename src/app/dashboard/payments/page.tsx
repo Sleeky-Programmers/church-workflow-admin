@@ -1,284 +1,376 @@
 'use client';
 
 import { format } from 'date-fns';
-import { AlertCircle, ArrowLeftRight, Banknote, CheckCircle, Clock, CreditCard, Download, Receipt, RefreshCw, Search, Wallet, XCircle } from 'lucide-react';
-import { useState } from 'react';
+import {
+	AlertCircle,
+	ArrowLeftRight,
+	Banknote,
+	CheckCircle,
+	ChevronLeft,
+	ChevronRight,
+	Clock,
+	CreditCard,
+	FileText,
+	Receipt,
+	RefreshCw,
+	Search,
+	X,
+	XCircle,
+} from 'lucide-react';
+import { useEffect, useState } from 'react';
 
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import Heading from '@/components/ui/typography/Heading';
 import { Text } from '@/components/ui/typography/Text';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { Church, fetchChurches } from '@/services/churchService';
+import { fetchPayments, fetchPaymentStats, Payment, PaymentStats, PaymentStatus, PlanType } from '@/services/paymentService';
+import { useSearchStore } from '@/stores/useSearchStore';
 
-// Mock transactions data
-const allTransactions = [
-	{
-		id: 'TXN-001',
-		churchId: 1,
-		churchName: 'Grace Chapel',
-		churchInitials: 'GC',
-		churchInitBg: 'bg-green-100',
-		churchInitColor: 'text-green-700',
-		plan: 'Enterprise',
-		amount: 35000,
-		currency: 'NGN',
-		status: 'success',
-		paymentMethod: 'card',
-		date: '2025-03-15T10:30:00Z',
-		reference: 'PAY_GC_001',
-		description: 'Enterprise Plan - March 2025',
-	},
-	{
-		id: 'TXN-002',
-		churchId: 2,
-		churchName: 'Harvest Fields',
-		churchInitials: 'HF',
-		churchInitBg: 'bg-blue-100',
-		churchInitColor: 'text-blue-700',
-		plan: 'Growth',
-		amount: 15000,
-		currency: 'NGN',
-		status: 'success',
-		paymentMethod: 'transfer',
-		date: '2025-03-14T14:45:00Z',
-		reference: 'PAY_HF_002',
-		description: 'Growth Plan - March 2025',
-	},
-	{
-		id: 'TXN-003',
-		churchId: 3,
-		churchName: 'Living Word Lagos',
-		churchInitials: 'LW',
-		churchInitBg: 'bg-amber-100',
-		churchInitColor: 'text-amber-700',
-		plan: 'Starter',
-		amount: 0,
-		currency: 'NGN',
-		status: 'success',
-		paymentMethod: 'free',
-		date: '2025-03-10T09:00:00Z',
-		reference: 'PAY_LW_003',
-		description: 'Starter Plan - Free Tier',
-	},
-	{
-		id: 'TXN-004',
-		churchId: 4,
-		churchName: 'Redeemed Assembly',
-		churchInitials: 'RA',
-		churchInitBg: 'bg-red-100',
-		churchInitColor: 'text-red-700',
-		plan: 'Growth',
-		amount: 15000,
-		currency: 'NGN',
-		status: 'failed',
-		paymentMethod: 'card',
-		date: '2025-03-12T11:20:00Z',
-		reference: 'PAY_RA_004',
-		description: 'Growth Plan - March 2025',
-		failureReason: 'Insufficient funds',
-	},
-	{
-		id: 'TXN-005',
-		churchId: 5,
-		churchName: 'Mount Zion Church',
-		churchInitials: 'MZ',
-		churchInitBg: 'bg-pink-100',
-		churchInitColor: 'text-pink-700',
-		plan: 'Enterprise',
-		amount: 35000,
-		currency: 'NGN',
-		status: 'pending',
-		paymentMethod: 'transfer',
-		date: '2025-03-16T08:15:00Z',
-		reference: 'PAY_MZ_005',
-		description: 'Enterprise Plan - March 2025',
-	},
-	{
-		id: 'TXN-006',
-		churchId: 6,
-		churchName: "Glory House Int'l",
-		churchInitials: 'GH',
-		churchInitBg: 'bg-lime-100',
-		churchInitColor: 'text-lime-700',
-		plan: 'Growth',
-		amount: 15000,
-		currency: 'NGN',
-		status: 'refunded',
-		paymentMethod: 'card',
-		date: '2025-03-01T16:30:00Z',
-		reference: 'PAY_GH_006',
-		description: 'Growth Plan - March 2025 (Refunded)',
-		refundReason: 'Customer requested',
-	},
-	{
-		id: 'TXN-007',
-		churchId: 7,
-		churchName: 'Cornerstone Chapel',
-		churchInitials: 'CC',
-		churchInitBg: 'bg-purple-100',
-		churchInitColor: 'text-purple-700',
-		plan: 'Starter',
-		amount: 0,
-		currency: 'NGN',
-		status: 'success',
-		paymentMethod: 'free',
-		date: '2025-03-05T13:00:00Z',
-		reference: 'PAY_CC_007',
-		description: 'Starter Plan - Free Tier',
-	},
-	{
-		id: 'TXN-008',
-		churchId: 8,
-		churchName: 'New Life Fellowship',
-		churchInitials: 'NL',
-		churchInitBg: 'bg-green-100',
-		churchInitColor: 'text-green-700',
-		plan: 'Growth',
-		amount: 15000,
-		currency: 'NGN',
-		status: 'success',
-		paymentMethod: 'card',
-		date: '2025-03-08T10:45:00Z',
-		reference: 'PAY_NL_008',
-		description: 'Growth Plan - March 2025',
-	},
-	{
-		id: 'TXN-009',
-		churchId: 1,
-		churchName: 'Grace Chapel',
-		churchInitials: 'GC',
-		churchInitBg: 'bg-green-100',
-		churchInitColor: 'text-green-700',
-		plan: 'Enterprise',
-		amount: 35000,
-		currency: 'NGN',
-		status: 'success',
-		paymentMethod: 'card',
-		date: '2025-02-15T10:30:00Z',
-		reference: 'PAY_GC_001_FEB',
-		description: 'Enterprise Plan - February 2025',
-	},
-	{
-		id: 'TXN-010',
-		churchId: 4,
-		churchName: 'Redeemed Assembly',
-		churchInitials: 'RA',
-		churchInitBg: 'bg-red-100',
-		churchInitColor: 'text-red-700',
-		plan: 'Growth',
-		amount: 15000,
-		currency: 'NGN',
-		status: 'pending_verification',
-		paymentMethod: 'transfer',
-		date: '2025-03-17T09:30:00Z',
-		reference: 'PAY_RA_004_RETRY',
-		description: 'Growth Plan - March 2025 (Retry)',
-	},
+const statusConfig: Record<PaymentStatus, { label: string; icon: any; class: string }> = {
+	PENDING: { label: 'Pending', icon: Clock, class: 'bg-amber-100 text-amber-700' },
+	SUCCESS: { label: 'Success', icon: CheckCircle, class: 'bg-green-100 text-green-700' },
+	FAILED: { label: 'Failed', icon: XCircle, class: 'bg-red-100 text-red-700' },
+	REFUNDED: { label: 'Refunded', icon: ArrowLeftRight, class: 'bg-gray-100 text-gray-700' },
+	CANCELLED: { label: 'Cancelled', icon: XCircle, class: 'bg-orange-100 text-orange-700' },
+};
+
+const planOptionsList = [
+	{ value: 'STARTER', price: 0, currency: 'NGN' },
+	{ value: 'GROWTH', price: 200000, currency: 'NGN' },
+	{ value: 'EXPANSION', price: 500000, currency: 'NGN' },
+	{ value: 'ENTERPRISE', price: 1000000, currency: 'NGN' },
 ];
 
-const statusConfig = {
-	success: { label: 'Success', icon: CheckCircle, class: 'bg-green-100 text-green-700' },
-	failed: { label: 'Failed', icon: XCircle, class: 'bg-red-100 text-red-700' },
-	pending: { label: 'Pending', icon: Clock, class: 'bg-amber-100 text-amber-700' },
-	refunded: { label: 'Refunded', icon: ArrowLeftRight, class: 'bg-gray-100 text-gray-700' },
-	pending_verification: { label: 'Pending Verification', icon: AlertCircle, class: 'bg-blue-100 text-blue-700' },
-};
-
-const paymentMethodConfig = {
-	card: { label: 'Card', icon: CreditCard },
-	transfer: { label: 'Bank Transfer', icon: Banknote },
-	free: { label: 'Free Tier', icon: Wallet },
-};
-
-const planOptions = ['All Plans', 'Enterprise', 'Growth', 'Starter'];
-const statusOptions = ['All Statuses', 'Success', 'Failed', 'Pending', 'Refunded', 'Pending Verification'];
-
 export default function PaymentsPage() {
-	const [searchQuery, setSearchQuery] = useState('');
-	const [planFilter, setPlanFilter] = useState('All Plans');
-	const [statusFilter, setStatusFilter] = useState('All Statuses');
-	const [dateRange, setDateRange] = useState<'all' | 'week' | 'month' | 'quarter'>('all');
-	const [selectedTransaction, setSelectedTransaction] = useState<(typeof allTransactions)[0] | null>(null);
-	const [isRefundModalOpen, setIsRefundModalOpen] = useState(false);
-	const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
-	const [refundReason, setRefundReason] = useState('');
-	const [refundAmount, setRefundAmount] = useState('');
-	const [verificationNote, setVerificationNote] = useState('');
 	const { toast } = useToast();
 
-	// Filter transactions
-	const filteredTransactions = allTransactions.filter((transaction) => {
-		const matchesSearch =
-			!searchQuery ||
-			transaction.churchName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-			transaction.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-			transaction.reference.toLowerCase().includes(searchQuery.toLowerCase());
+	// Use search store for global search state
+	const { searchQuery, setSearchQuery, clearSearch } = useSearchStore();
 
-		const matchesPlan = planFilter === 'All Plans' || transaction.plan === planFilter;
-		const matchesStatus =
-			statusFilter === 'All Statuses' || statusFilter === 'Pending Verification'
-				? transaction.status === 'pending_verification'
-				: transaction.status === statusFilter.toLowerCase();
+	// Local state for search input (syncs with store)
+	const [localSearch, setLocalSearch] = useState(searchQuery);
+	const [planFilter, setPlanFilter] = useState<string>('all');
+	const [statusFilter, setStatusFilter] = useState<string>('all');
+	const [churchFilter, setChurchFilter] = useState<string>('all');
+	const [dateRange, setDateRange] = useState<'all' | 'week' | 'month' | 'quarter'>('all');
+	const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
+	const [isRefundModalOpen, setIsRefundModalOpen] = useState(false);
+	const [isManualPaymentModalOpen, setIsManualPaymentModalOpen] = useState(false);
+	const [isPaymentLogsModalOpen, setIsPaymentLogsModalOpen] = useState(false);
+	const [selectedChurchForLogs, setSelectedChurchForLogs] = useState<Church | null>(null);
+	const [refundReason, setRefundReason] = useState('');
+	const [refundAmount, setRefundAmount] = useState('');
 
-		// Date filtering
-		let matchesDate = true;
-		const transactionDate = new Date(transaction.date);
-		const now = new Date();
-		if (dateRange === 'week') {
-			const weekAgo = new Date(now.setDate(now.getDate() - 7));
-			matchesDate = transactionDate >= weekAgo;
-		} else if (dateRange === 'month') {
-			const monthAgo = new Date(now.setMonth(now.getMonth() - 1));
-			matchesDate = transactionDate >= monthAgo;
-		} else if (dateRange === 'quarter') {
-			const quarterAgo = new Date(now.setMonth(now.getMonth() - 3));
-			matchesDate = transactionDate >= quarterAgo;
-		}
+	// State for real data - decoupled
+	const [payments, setPayments] = useState<Payment[]>([]);
+	const [paymentStats, setPaymentStats] = useState<PaymentStats | null>(null);
+	const [churches, setChurches] = useState<Church[]>([]);
 
-		return matchesSearch && matchesPlan && matchesStatus && matchesDate;
+	// Decoupled loading states
+	const [tableLoading, setTableLoading] = useState(true);
+	const [statsLoading, setStatsLoading] = useState(true);
+	const [tableError, setTableError] = useState<string | null>(null);
+	const [statsError, setStatsError] = useState<string | null>(null);
+	const [isSubmitting, setIsSubmitting] = useState(false);
+
+	// Pagination state
+	const [currentPage, setCurrentPage] = useState(1);
+	const [itemsPerPage, setItemsPerPage] = useState(10);
+	const [totalItems, setTotalItems] = useState(0);
+	const [paginationData, setPaginationData] = useState<any>(null);
+
+	// Manual payment form state
+	const [manualPaymentForm, setManualPaymentForm] = useState({
+		churchId: '',
+		plan: 'GROWTH' as PlanType,
+		notes: '',
 	});
 
-	// Stats calculations
-	const totalRevenue = filteredTransactions.filter((t) => t.status === 'success').reduce((sum, t) => sum + t.amount, 0);
+	// Sync local search with global store when store changes (from navbar)
+	useEffect(() => {
+		setLocalSearch(searchQuery);
+	}, [searchQuery]);
 
-	const pendingAmount = filteredTransactions.filter((t) => t.status === 'pending' || t.status === 'pending_verification').reduce((sum, t) => sum + t.amount, 0);
+	// Fetch table data when filters change
+	useEffect(() => {
+		fetchPaymentsData();
+	}, [planFilter, statusFilter, churchFilter, dateRange, currentPage, itemsPerPage, searchQuery]);
 
-	const successCount = filteredTransactions.filter((t) => t.status === 'success').length;
-	const failedCount = filteredTransactions.filter((t) => t.status === 'failed').length;
+	// Fetch stats independently when date range changes
+	useEffect(() => {
+		fetchStatsData();
+	}, [dateRange]);
 
-	const handleRefund = () => {
-		toast({
-			title: 'Refund Processed',
-			description: `Refund of ${refundAmount || 'full amount'} for ${selectedTransaction?.churchName} has been initiated.`,
-		});
-		setIsRefundModalOpen(false);
-		setRefundReason('');
-		setRefundAmount('');
+	// Fetch churches on mount
+	useEffect(() => {
+		fetchChurchesData();
+	}, []);
+
+	const fetchPaymentsData = async () => {
+		setTableLoading(true);
+		setTableError(null);
+		try {
+			// Calculate date range filter
+			let fromDate: string | undefined;
+			if (dateRange !== 'all') {
+				const now = new Date();
+				if (dateRange === 'week') {
+					fromDate = new Date(now.setDate(now.getDate() - 7)).toISOString();
+				} else if (dateRange === 'month') {
+					fromDate = new Date(now.setMonth(now.getMonth() - 1)).toISOString();
+				} else if (dateRange === 'quarter') {
+					fromDate = new Date(now.setMonth(now.getMonth() - 3)).toISOString();
+				}
+			}
+
+			const paymentsData = await fetchPayments({
+				limit: itemsPerPage,
+				page: currentPage,
+				status: statusFilter !== 'all' ? (statusFilter as PaymentStatus) : undefined,
+				plan: planFilter !== 'all' ? (planFilter as PlanType) : undefined,
+				from: fromDate,
+				search: searchQuery || undefined, // Use global search query
+			});
+
+			setPayments(paymentsData.data);
+			setTotalItems(paymentsData.pagination?.itemCount || paymentsData.data.length);
+			setPaginationData(paymentsData.pagination);
+		} catch (err) {
+			setTableError(err instanceof Error ? err.message : 'Failed to load payments');
+			toast({
+				title: 'Error',
+				description: 'Failed to load payment data',
+				variant: 'destructive',
+			});
+		} finally {
+			setTableLoading(false);
+		}
 	};
 
-	const handleVerifyPayment = () => {
-		toast({
-			title: 'Payment Verified',
-			description: `Payment ${selectedTransaction?.id} has been marked as verified. ${verificationNote ? `Note: ${verificationNote}` : ''}`,
-		});
-		setIsVerifyModalOpen(false);
-		setVerificationNote('');
+	const fetchStatsData = async () => {
+		setStatsLoading(true);
+		setStatsError(null);
+		try {
+			const statsData = await fetchPaymentStats(dateRange !== 'all' ? (dateRange as any) : undefined);
+			setPaymentStats(statsData);
+		} catch (err) {
+			setStatsError(err instanceof Error ? err.message : 'Failed to load stats');
+			toast({
+				title: 'Error',
+				description: 'Failed to load payment statistics',
+				variant: 'destructive',
+			});
+		} finally {
+			setStatsLoading(false);
+		}
+	};
+
+	const fetchChurchesData = async () => {
+		try {
+			const response = await fetchChurches({ limit: 100 });
+			setChurches(response.data);
+		} catch (err) {
+			// Silent fail for churches fetch
+		}
+	};
+
+	// Handle local search change - syncs to global store
+	const handleLocalSearchChange = (value: string) => {
+		setLocalSearch(value);
+		setSearchQuery(value); // Update global store
+	};
+
+	// Handle clear search - syncs to global store
+	const handleClearSearch = () => {
+		setLocalSearch('');
+		clearSearch(); // Clear global store
+	};
+
+	// Filter transactions locally for church filter
+	const filteredPayments = payments.filter((payment) => {
+		const matchesChurch = churchFilter === 'all' || payment.churchName === churches.find((c) => c.id === churchFilter)?.name;
+		return matchesChurch;
+	});
+
+	// Get payment logs for a specific church
+	const getChurchPaymentLogs = (churchName: string) => {
+		return payments.filter((p) => p.churchName === churchName).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+	};
+
+	// Stats from real data
+	const totalRevenue = paymentStats?.totalRevenue || 0;
+	const pendingAmount = paymentStats?.pendingAmount || 0;
+	const pendingCount = paymentStats?.pendingCount || 0;
+	const failedCount = paymentStats?.failedCount || 0;
+	const successRate = paymentStats?.successRate || '0%';
+	const totalCount = paymentStats?.totalCount || 0;
+
+	const handleRefund = async () => {
+		if (!selectedPayment) return;
+
+		setIsSubmitting(true);
+		try {
+			// TODO: Call API to process refund when endpoint is available
+			// await processRefund(selectedPayment._id, { amount: refundAmount, reason: refundReason });
+
+			toast({
+				title: 'Refund Processed',
+				description: `Refund of ${refundAmount || 'full amount'} for ${selectedPayment.churchName} has been initiated.`,
+			});
+			setIsRefundModalOpen(false);
+			setRefundReason('');
+			setRefundAmount('');
+			fetchPaymentsData(); // Refresh table data
+			fetchStatsData(); // Refresh stats
+		} catch (err) {
+			toast({
+				title: 'Error',
+				description: err instanceof Error ? err.message : 'Failed to process refund',
+				variant: 'destructive',
+			});
+		} finally {
+			setIsSubmitting(false);
+		}
+	};
+
+	const handleViewPaymentLogs = (church: Church) => {
+		setSelectedChurchForLogs(church);
+		setIsPaymentLogsModalOpen(true);
 	};
 
 	const formatDate = (dateString: string) => {
 		return format(new Date(dateString), 'MMM dd, yyyy • h:mm a');
 	};
 
-	const formatAmount = (amount: number, currency: string) => {
+	const formatAmount = (amount: number, currency: string = 'NGN') => {
 		return new Intl.NumberFormat('en-NG', { style: 'currency', currency }).format(amount);
 	};
+
+	const getInitials = (name: string) => {
+		return name
+			.split(' ')
+			.map((word) => word[0])
+			.join('')
+			.toUpperCase()
+			.slice(0, 2);
+	};
+
+	const getAvatarColor = (name: string) => {
+		const colors = [
+			{ bg: 'bg-green-100', text: 'text-green-700' },
+			{ bg: 'bg-blue-100', text: 'text-blue-700' },
+			{ bg: 'bg-amber-100', text: 'text-amber-700' },
+			{ bg: 'bg-purple-100', text: 'text-purple-700' },
+			{ bg: 'bg-pink-100', text: 'text-pink-700' },
+			{ bg: 'bg-indigo-100', text: 'text-indigo-700' },
+		];
+		const index = name.length % colors.length;
+		return colors[index];
+	};
+
+	// Pagination handlers
+	const handlePageChange = (page: number) => {
+		setCurrentPage(page);
+	};
+
+	const handleItemsPerPageChange = (value: string) => {
+		setItemsPerPage(parseInt(value));
+		setCurrentPage(1);
+	};
+
+	const totalPages = paginationData?.totalPages || Math.ceil(totalItems / itemsPerPage);
+
+	// Stats Card Skeleton
+	const StatsSkeleton = () => (
+		<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+			{[1, 2, 3, 4].map((i) => (
+				<Card
+					key={i}
+					className="rounded-2xl">
+					<CardContent className="pt-6">
+						<div className="flex items-center justify-between">
+							<div className="space-y-2">
+								<div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+								<div className="h-8 w-32 bg-gray-200 rounded animate-pulse" />
+							</div>
+							<div className="w-10 h-10 rounded-full bg-gray-200 animate-pulse" />
+						</div>
+						<div className="h-3 w-40 bg-gray-200 rounded animate-pulse mt-2" />
+					</CardContent>
+				</Card>
+			))}
+		</div>
+	);
+
+	// Table Skeleton
+	const TableSkeleton = () => (
+		<Card className="rounded-2xl">
+			<CardContent className="p-0">
+				<div
+					className="overflow-x-auto"
+					style={{ height: '80dvh', overflowY: 'auto' }}>
+					<table className="w-full text-sm">
+						<thead className="sticky top-0 z-10 bg-white shadow-sm">
+							<tr className="border-b border-gray-200">
+								<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Transaction</th>
+								<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Church</th>
+								<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Plan</th>
+								<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Amount</th>
+								<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Status</th>
+								<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Date</th>
+								<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Reference</th>
+								<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Actions</th>
+							</tr>
+						</thead>
+						<tbody>
+							{[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
+								<tr
+									key={i}
+									className="border-b">
+									<td className="py-3 px-4">
+										<div className="h-4 w-32 bg-gray-200 rounded animate-pulse" />
+									</td>
+									<td className="py-3 px-4">
+										<div className="flex items-center gap-3">
+											<div className="h-8 w-8 rounded-full bg-gray-200 animate-pulse" />
+											<div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+										</div>
+									</td>
+									<td className="py-3 px-4">
+										<div className="h-4 w-16 bg-gray-200 rounded animate-pulse" />
+									</td>
+									<td className="py-3 px-4">
+										<div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
+									</td>
+									<td className="py-3 px-4">
+										<div className="h-6 w-20 bg-gray-200 rounded-full animate-pulse" />
+									</td>
+									<td className="py-3 px-4">
+										<div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+									</td>
+									<td className="py-3 px-4">
+										<div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
+									</td>
+									<td className="py-3 px-4">
+										<div className="h-4 w-16 bg-gray-200 rounded animate-pulse" />
+									</td>
+								</tr>
+							))}
+						</tbody>
+					</table>
+				</div>
+			</CardContent>
+		</Card>
+	);
 
 	return (
 		<>
@@ -290,7 +382,7 @@ export default function PaymentsPage() {
 						text="Payments & Subscriptions"
 					/>
 					<Text
-						text="Manage transactions, process refunds, and verify payments"
+						text="Manage transactions, process refunds, record manual payments, and verify payments"
 						variant="muted"
 					/>
 				</div>
@@ -298,206 +390,251 @@ export default function PaymentsPage() {
 					<Button
 						variant="outline"
 						size="sm"
-						className="gap-2">
-						<Download className="h-4 w-4" />
-						Export
-					</Button>
-					<Button
-						variant="outline"
-						size="sm"
-						className="gap-2">
+						className="gap-2"
+						onClick={() => {
+							fetchPaymentsData();
+							fetchStatsData();
+						}}>
 						<RefreshCw className="h-4 w-4" />
-						Sync
+						Refresh
 					</Button>
 				</div>
 			</div>
 
-			{/* Stats Cards */}
-			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-				<Card className="rounded-2xl">
-					<CardContent className="pt-6">
-						<div className="flex items-center justify-between">
-							<div>
-								<Text
-									text="Total Revenue"
-									variant="muted"
-									className="text-sm"
-								/>
-								<Heading
-									level={2}
-									text={formatAmount(totalRevenue, 'NGN')}
-									className="text-2xl font-semibold mt-1"
-								/>
-							</div>
-							<div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-								<Receipt className="w-5 h-5 text-green-600" />
-							</div>
+			{/* Stats Cards - Independent Loading */}
+			{statsLoading ? (
+				<StatsSkeleton />
+			) : statsError ? (
+				<Card className="rounded-2xl mb-6">
+					<CardContent className="py-8">
+						<div className="text-center text-red-600">
+							<p className="font-semibold">Failed to load statistics</p>
+							<p className="text-sm mt-1">{statsError}</p>
+							<Button
+								onClick={fetchStatsData}
+								variant="outline"
+								size="sm"
+								className="mt-3">
+								Retry
+							</Button>
 						</div>
-						<Text
-							text={`From ${successCount} successful transactions`}
-							variant="muted"
-							className="text-xs mt-2"
-						/>
 					</CardContent>
 				</Card>
+			) : (
+				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+					<Card className="rounded-2xl">
+						<CardContent className="pt-6">
+							<div className="flex items-center justify-between">
+								<div>
+									<Text
+										text="Total Revenue"
+										variant="muted"
+										className="text-sm"
+									/>
+									<Heading
+										level={2}
+										text={formatAmount(totalRevenue)}
+										className="text-2xl font-semibold mt-1"
+									/>
+								</div>
+								<div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+									<Receipt className="w-5 h-5 text-green-600" />
+								</div>
+							</div>
+							<Text
+								text={`From all successful transactions`}
+								variant="muted"
+								className="text-xs mt-2"
+							/>
+						</CardContent>
+					</Card>
 
-				<Card className="rounded-2xl">
-					<CardContent className="pt-6">
-						<div className="flex items-center justify-between">
-							<div>
-								<Text
-									text="Pending Payments"
-									variant="muted"
-									className="text-sm"
-								/>
-								<Heading
-									level={2}
-									text={formatAmount(pendingAmount, 'NGN')}
-									className="text-2xl font-semibold mt-1"
-								/>
+					<Card className="rounded-2xl">
+						<CardContent className="pt-6">
+							<div className="flex items-center justify-between">
+								<div>
+									<Text
+										text="Pending Payments"
+										variant="muted"
+										className="text-sm"
+									/>
+									<Heading
+										level={2}
+										text={formatAmount(pendingAmount)}
+										className="text-2xl font-semibold mt-1"
+									/>
+								</div>
+								<div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+									<Clock className="w-5 h-5 text-amber-600" />
+								</div>
 							</div>
-							<div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
-								<Clock className="w-5 h-5 text-amber-600" />
-							</div>
-						</div>
-						<Text
-							text="Awaiting confirmation"
-							variant="muted"
-							className="text-xs mt-2"
-						/>
-					</CardContent>
-				</Card>
+							<Text
+								text={`${pendingCount} transaction${pendingCount !== 1 ? 's' : ''} awaiting confirmation`}
+								variant="muted"
+								className="text-xs mt-2"
+							/>
+						</CardContent>
+					</Card>
 
-				<Card className="rounded-2xl">
-					<CardContent className="pt-6">
-						<div className="flex items-center justify-between">
-							<div>
-								<Text
-									text="Success Rate"
-									variant="muted"
-									className="text-sm"
-								/>
-								<Heading
-									level={2}
-									text={`${filteredTransactions.length ? ((successCount / filteredTransactions.length) * 100).toFixed(1) : 0}%`}
-									className="text-2xl font-semibold mt-1"
-								/>
+					<Card className="rounded-2xl">
+						<CardContent className="pt-6">
+							<div className="flex items-center justify-between">
+								<div>
+									<Text
+										text="Success Rate"
+										variant="muted"
+										className="text-sm"
+									/>
+									<Heading
+										level={2}
+										text={successRate}
+										className="text-2xl font-semibold mt-1"
+									/>
+								</div>
+								<div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+									<CheckCircle className="w-5 h-5 text-blue-600" />
+								</div>
 							</div>
-							<div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-								<CheckCircle className="w-5 h-5 text-blue-600" />
-							</div>
-						</div>
-						<Text
-							text={`${failedCount} failed transactions`}
-							variant="muted"
-							className="text-xs mt-2"
-						/>
-					</CardContent>
-				</Card>
+							<Text
+								text={`${failedCount} failed transactions`}
+								variant="muted"
+								className="text-xs mt-2"
+							/>
+						</CardContent>
+					</Card>
 
-				<Card className="rounded-2xl">
-					<CardContent className="pt-6">
-						<div className="flex items-center justify-between">
-							<div>
-								<Text
-									text="Pending Verification"
-									variant="muted"
-									className="text-sm"
-								/>
-								<Heading
-									level={2}
-									text={filteredTransactions.filter((t) => t.status === 'pending_verification').length.toString()}
-									className="text-2xl font-semibold mt-1"
-								/>
+					<Card className="rounded-2xl">
+						<CardContent className="pt-6">
+							<div className="flex items-center justify-between">
+								<div>
+									<Text
+										text="Total Transactions"
+										variant="muted"
+										className="text-sm"
+									/>
+									<Heading
+										level={2}
+										text={totalCount.toString()}
+										className="text-2xl font-semibold mt-1"
+									/>
+								</div>
+								<div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
+									<CreditCard className="w-5 h-5 text-purple-600" />
+								</div>
 							</div>
-							<div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
-								<AlertCircle className="w-5 h-5 text-purple-600" />
-							</div>
-						</div>
-						<Text
-							text="Need manual review"
-							variant="muted"
-							className="text-xs mt-2"
-						/>
-					</CardContent>
-				</Card>
-			</div>
+							<Text
+								text="All time transactions"
+								variant="muted"
+								className="text-xs mt-2"
+							/>
+						</CardContent>
+					</Card>
+				</div>
+			)}
 
-			{/* Filters */}
 			<Card className="rounded-2xl mb-6">
 				<CardContent className="p-4">
-					<div className="flex flex-col lg:flex-row gap-4">
-						<div className="relative flex-1">
-							<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+						<div className="relative md:col-span-2 lg:col-span-1 flex items-center h-10">
+							<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
 							<Input
 								placeholder="Search by church, transaction ID, or reference..."
-								value={searchQuery}
-								onChange={(e) => setSearchQuery(e.target.value)}
-								className="pl-9"
+								value={localSearch}
+								onChange={(e) => handleLocalSearchChange(e.target.value)}
+								className="pl-9 pr-8 h-10"
 							/>
+							{localSearch && (
+								<Button
+									size="icon"
+									variant="ghost"
+									className="absolute right-0 top-1/2 -translate-y-1/2 h-full px-3 w-auto rounded-full hover:bg-transparent hover:scale-110"
+									onClick={handleClearSearch}
+									aria-label="Clear search">
+									<X className="size-4 text-muted-foreground hover:text-foreground transition-colors" />
+								</Button>
+							)}
 						</div>
 
+						{/* Church Filter */}
+						<Select
+							value={churchFilter}
+							onValueChange={setChurchFilter}>
+							<SelectTrigger className="h-10">
+								<SelectValue placeholder="All Churches" />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="all">All Churches</SelectItem>
+								{churches.map((church) => (
+									<SelectItem
+										key={church.id}
+										value={church.id}>
+										{church.name}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+
+						{/* Plan Filter */}
 						<Select
 							value={planFilter}
 							onValueChange={setPlanFilter}>
-							<SelectTrigger className="w-[160px]">
-								<SelectValue placeholder="Plan" />
+							<SelectTrigger className="h-10">
+								<SelectValue placeholder="All Plans" />
 							</SelectTrigger>
 							<SelectContent>
-								{planOptions.map((plan) => (
-									<SelectItem
-										key={plan}
-										value={plan}>
-										{plan}
-									</SelectItem>
-								))}
+								<SelectItem value="all">All Plans</SelectItem>
+								<SelectItem value="ENTERPRISE">Enterprise</SelectItem>
+								<SelectItem value="EXPANSION">Expansion</SelectItem>
+								<SelectItem value="GROWTH">Growth</SelectItem>
+								<SelectItem value="STARTER">Starter</SelectItem>
 							</SelectContent>
 						</Select>
 
+						{/* Status Filter */}
 						<Select
 							value={statusFilter}
 							onValueChange={setStatusFilter}>
-							<SelectTrigger className="w-[180px]">
-								<SelectValue placeholder="Status" />
+							<SelectTrigger className="h-10">
+								<SelectValue placeholder="All Status" />
 							</SelectTrigger>
 							<SelectContent>
-								{statusOptions.map((status) => (
-									<SelectItem
-										key={status}
-										value={status}>
-										{status}
-									</SelectItem>
-								))}
+								<SelectItem value="all">All Status</SelectItem>
+								<SelectItem value="PENDING">Pending</SelectItem>
+								<SelectItem value="SUCCESS">Success</SelectItem>
+								<SelectItem value="FAILED">Failed</SelectItem>
+								<SelectItem value="REFUNDED">Refunded</SelectItem>
+								<SelectItem value="CANCELLED">Cancelled</SelectItem>
 							</SelectContent>
 						</Select>
 
-						<div className="flex gap-2">
+						{/* Date Range Buttons - full width on mobile, auto on desktop */}
+						<div className="flex flex-wrap gap-2 xl:flex-nowrap lg:justify-end items-center">
 							<Button
 								variant={dateRange === 'all' ? 'default' : 'outline'}
 								size="sm"
 								onClick={() => setDateRange('all')}
-								className="px-3">
+								className="flex-1 md:flex-none px-3 h-10">
 								All
 							</Button>
 							<Button
 								variant={dateRange === 'week' ? 'default' : 'outline'}
 								size="sm"
 								onClick={() => setDateRange('week')}
-								className="px-3">
+								className="flex-1 md:flex-none px-3 h-10">
 								Week
 							</Button>
 							<Button
 								variant={dateRange === 'month' ? 'default' : 'outline'}
 								size="sm"
 								onClick={() => setDateRange('month')}
-								className="px-3">
+								className="flex-1 md:flex-none px-3 h-10">
 								Month
 							</Button>
 							<Button
 								variant={dateRange === 'quarter' ? 'default' : 'outline'}
 								size="sm"
 								onClick={() => setDateRange('quarter')}
-								className="px-3">
+								className="flex-1 md:flex-none px-3 h-10">
 								Quarter
 							</Button>
 						</div>
@@ -505,128 +642,388 @@ export default function PaymentsPage() {
 				</CardContent>
 			</Card>
 
-			{/* Transactions Table */}
-			<Card className="rounded-2xl">
-				<CardContent className="p-0">
-					<div className="overflow-x-auto">
-						<table className="w-full text-sm">
-							<thead>
-								<tr className="border-b">
-									<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Transaction</th>
-									<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Church</th>
-									<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Plan</th>
-									<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Amount</th>
-									<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Payment Method</th>
-									<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Status</th>
-									<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Date</th>
-									<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Actions</th>
-								</tr>
-							</thead>
-							<tbody>
-								{filteredTransactions.map((transaction) => {
-									const StatusIcon = statusConfig[transaction.status as keyof typeof statusConfig]?.icon || CheckCircle;
-									const statusInfo = statusConfig[transaction.status as keyof typeof statusConfig] || statusConfig.success;
-									const methodInfo = paymentMethodConfig[transaction.paymentMethod as keyof typeof paymentMethodConfig] || paymentMethodConfig.card;
-									const MethodIcon = methodInfo.icon;
+			{tableLoading ? (
+				<TableSkeleton />
+			) : tableError ? (
+				<Card className="rounded-2xl">
+					<CardContent className="py-12">
+						<div className="text-center text-red-600">
+							<p className="font-semibold">Failed to load transactions</p>
+							<p className="text-sm mt-1">{tableError}</p>
+							<Button
+								onClick={fetchPaymentsData}
+								variant="outline"
+								size="sm"
+								className="mt-3">
+								Retry
+							</Button>
+						</div>
+					</CardContent>
+				</Card>
+			) : (
+				<Card className="rounded-2xl">
+					<CardContent className="p-0">
+						<div
+							className="overflow-x-auto"
+							style={{ height: '80dvh', overflowY: 'auto' }}>
+							<table className="w-full text-sm">
+								<thead className="sticky top-0 z-10 bg-white shadow-sm">
+									<tr className="border-b border-gray-200">
+										<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Transaction</th>
+										<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Church</th>
+										<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Plan</th>
+										<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Amount</th>
+										<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Status</th>
+										<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Date</th>
+										<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Reference</th>
+										<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Actions</th>
+									</tr>
+								</thead>
+								<tbody>
+									{filteredPayments.map((payment) => {
+										console.log('Rendering payment row for:', payment);
+										const StatusIcon = statusConfig[payment.status]?.icon || CheckCircle;
+										const statusInfo = statusConfig[payment.status] || statusConfig.SUCCESS;
+										// const avatarColor = getAvatarColor(payment.churchName);
 
-									return (
-										<tr
-											key={transaction.id}
-											className="border-b last:border-0 hover:bg-gray-50">
-											<td className="py-3 px-4">
-												<div>
-													<div className="font-mono text-xs font-medium">{transaction.id}</div>
-													<div className="text-xs text-gray-500 mt-0.5">{transaction.reference}</div>
-												</div>
-											</td>
-											<td className="py-3 px-4">
-												<div className="flex items-center gap-3">
-													<Avatar className="h-8 w-8">
-														<AvatarFallback className={cn(transaction.churchInitBg, transaction.churchInitColor)}>{transaction.churchInitials}</AvatarFallback>
-													</Avatar>
-													<span className="font-medium">{transaction.churchName}</span>
-												</div>
-											</td>
-											<td className="py-3 px-4">
-												<span className="text-sm">{transaction.plan}</span>
-											</td>
-											<td className="py-3 px-4 font-semibold">{transaction.amount === 0 ? 'Free' : formatAmount(transaction.amount, transaction.currency)}</td>
-											<td className="py-3 px-4">
-												<div className="flex items-center gap-1.5">
-													<MethodIcon className="h-3.5 w-3.5 text-gray-500" />
-													<span className="text-sm">{methodInfo.label}</span>
-												</div>
-											</td>
-											<td className="py-3 px-4">
-												<span className={cn('inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium', statusInfo.class)}>
-													<StatusIcon className="h-3 w-3" />
-													{statusInfo.label}
-												</span>
-											</td>
-											<td className="py-3 px-4 text-gray-500 text-xs">{formatDate(transaction.date)}</td>
-											<td className="py-3 px-4">
-												<div className="flex gap-2">
-													{transaction.status === 'failed' && (
+										return (
+											<tr
+												key={payment._id}
+												className="border-b last:border-0 hover:bg-gray-50">
+												<td className="py-3 px-4">
+													<div>
+														<div className="font-mono text-xs font-medium">{payment.transactionId}</div>
+													</div>
+												</td>
+												<td className="py-3 px-4">
+													<div className="flex items-center gap-3">
+														<div>
+															<span className="font-medium">{payment.churchName}</span>
+														</div>
+													</div>
+												</td>
+												<td className="py-3 px-4">
+													<span className="text-sm">{payment.plan}</span>
+												</td>
+												<td className="py-3 px-4 font-semibold">{payment.amount === 0 ? 'Free' : formatAmount(payment.amount)}</td>
+												<td className="py-3 px-4">
+													<span className={cn('inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium', statusInfo.class)}>
+														<StatusIcon className="h-3 w-3" />
+														{statusInfo.label}
+													</span>
+												</td>
+												<td className="py-3 px-4 text-gray-500 text-xs">{formatDate(payment.date)}</td>
+												<td className="py-3 px-4">
+													<span className="font-mono text-xs text-gray-500">{payment.reference}</span>
+												</td>
+												<td className="py-3 px-4">
+													<div className="flex gap-2">
 														<Button
-															variant="ghost"
+															variant="link"
 															size="sm"
-															className="h-7 text-xs"
+															className="h-auto p-0 text-xs text-primary-600"
 															onClick={() => {
-																setSelectedTransaction(transaction);
-																setIsRefundModalOpen(true);
+																const church = churches.find((c) => c.name === payment.churchName);
+																if (church) handleViewPaymentLogs(church);
 															}}>
-															Refund
+															View logs
 														</Button>
-													)}
-													{transaction.status === 'pending_verification' && (
-														<Button
-															variant="default"
-															size="sm"
-															className="h-7 text-xs"
-															onClick={() => {
-																setSelectedTransaction(transaction);
-																setIsVerifyModalOpen(true);
-															}}>
-															Verify
-														</Button>
-													)}
-													{transaction.status === 'pending' && (
-														<Button
-															variant="outline"
-															size="sm"
-															className="h-7 text-xs"
-															onClick={() => {
-																setSelectedTransaction(transaction);
-																setIsVerifyModalOpen(true);
-															}}>
-															Mark Verified
-														</Button>
-													)}
-												</div>
-											</td>
-										</tr>
-									);
-								})}
-							</tbody>
-						</table>
-					</div>
+													</div>
+												</td>
+											</tr>
+										);
+									})}
+								</tbody>
+							</table>
+						</div>
 
-					{filteredTransactions.length === 0 && (
-						<div className="text-center py-12">
-							<Receipt className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-							<Text
-								text="No transactions found"
-								className="text-gray-500"
-							/>
-							<Text
-								text="Try adjusting your filters"
-								variant="muted"
-								className="text-sm"
+						{filteredPayments.length === 0 && !tableLoading && (
+							<div className="text-center py-12">
+								<Receipt className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+								<Text
+									text="No transactions found"
+									className="text-gray-500"
+								/>
+								<Text
+									text="Try adjusting your filters"
+									variant="muted"
+									className="text-sm"
+								/>
+							</div>
+						)}
+
+						{/* Pagination Component */}
+						{totalItems > 0 && (
+							<div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 bg-gray-50">
+								<div className="flex items-center gap-2">
+									<span className="text-sm text-gray-600">Rows per page:</span>
+									<Select
+										value={itemsPerPage.toString()}
+										onValueChange={handleItemsPerPageChange}>
+										<SelectTrigger className="w-20 h-8">
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent>
+											{[5, 10, 20, 50, 100].map((size) => (
+												<SelectItem
+													key={size}
+													value={size.toString()}>
+													{size}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								</div>
+
+								<div className="text-sm text-gray-600">
+									Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} results
+								</div>
+
+								<div className="flex items-center gap-2">
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={() => handlePageChange(currentPage - 1)}
+										disabled={currentPage === 1}
+										className="h-8 px-2">
+										<ChevronLeft className="h-4 w-4" />
+										Previous
+									</Button>
+
+									<div className="flex gap-1">
+										{Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+											let pageNum;
+											if (totalPages <= 5) {
+												pageNum = i + 1;
+											} else if (currentPage <= 3) {
+												pageNum = i + 1;
+											} else if (currentPage >= totalPages - 2) {
+												pageNum = totalPages - 4 + i;
+											} else {
+												pageNum = currentPage - 2 + i;
+											}
+
+											return (
+												<Button
+													key={pageNum}
+													variant={currentPage === pageNum ? 'default' : 'outline'}
+													size="sm"
+													onClick={() => handlePageChange(pageNum)}
+													className="h-8 w-8 p-0">
+													{pageNum}
+												</Button>
+											);
+										})}
+									</div>
+
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={() => handlePageChange(currentPage + 1)}
+										disabled={currentPage === totalPages}
+										className="h-8 px-2">
+										Next
+										<ChevronRight className="h-4 w-4" />
+									</Button>
+								</div>
+							</div>
+						)}
+					</CardContent>
+				</Card>
+			)}
+
+			<Dialog
+				open={isManualPaymentModalOpen}
+				onOpenChange={setIsManualPaymentModalOpen}>
+				<DialogContent className="sm:max-w-[550px]">
+					<DialogHeader>
+						<DialogTitle>Record Manual Payment</DialogTitle>
+						<DialogDescription>Manually record a payment received from a church</DialogDescription>
+					</DialogHeader>
+
+					<div className="space-y-4 py-4">
+						<div>
+							<Label htmlFor="church">Church *</Label>
+							<Select
+								value={manualPaymentForm.churchId}
+								onValueChange={(value) => setManualPaymentForm({ ...manualPaymentForm, churchId: value })}>
+								<SelectTrigger className="mt-1.5">
+									<SelectValue placeholder="Select church" />
+								</SelectTrigger>
+								<SelectContent>
+									{churches.map((church) => (
+										<SelectItem
+											key={church.id}
+											value={church.id}>
+											{church.name}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+
+						<div>
+							<Label htmlFor="plan">Plan *</Label>
+							<Select
+								value={manualPaymentForm.plan}
+								onValueChange={(value) => setManualPaymentForm({ ...manualPaymentForm, plan: value as PlanType })}>
+								<SelectTrigger className="mt-1.5">
+									<SelectValue placeholder="Select plan" />
+								</SelectTrigger>
+								<SelectContent>
+									{planOptionsList.map((plan) => (
+										<SelectItem
+											key={plan.value}
+											value={plan.value}>
+											{plan.value} - {formatAmount(plan.price, plan.currency)}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+
+						<div>
+							<Label htmlFor="notes">Notes (Optional)</Label>
+							<Textarea
+								id="notes"
+								placeholder="Add any notes about this payment..."
+								value={manualPaymentForm.notes}
+								onChange={(e) => setManualPaymentForm({ ...manualPaymentForm, notes: e.target.value })}
+								className="mt-1.5"
+								rows={3}
 							/>
 						</div>
+
+						<div className="bg-amber-50 rounded-lg p-3 border border-amber-200">
+							<div className="flex items-start gap-2">
+								<AlertCircle className="h-4 w-4 text-amber-600 mt-0.5" />
+								<Text
+									text="Recording a manual payment will mark the church's subscription as paid and update their billing status."
+									variant="muted"
+									className="text-xs"
+								/>
+							</div>
+						</div>
+					</div>
+
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => setIsManualPaymentModalOpen(false)}>
+							Cancel
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Payment Logs Modal */}
+			<Dialog
+				open={isPaymentLogsModalOpen}
+				onOpenChange={setIsPaymentLogsModalOpen}>
+				<DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
+					<DialogHeader>
+						<DialogTitle className="flex flex-col gap-3">
+							<div className="text-xl">Payment Logs - {selectedChurchForLogs?.name}</div>
+							<DialogDescription>Complete payment history for this church</DialogDescription>
+						</DialogTitle>
+					</DialogHeader>
+
+					<Separator className="my-5" />
+
+					{selectedChurchForLogs && (
+						<div className="space-y-4">
+							{getChurchPaymentLogs(selectedChurchForLogs.name).length === 0 ? (
+								<div className="text-center py-8">
+									<Receipt className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+									<Text
+										text="No payment records found"
+										className="text-gray-500"
+									/>
+								</div>
+							) : (
+								<div className="space-y-3">
+									{getChurchPaymentLogs(selectedChurchForLogs.name).map((log) => {
+										const StatusIcon = statusConfig[log.status]?.icon || CheckCircle;
+										const statusInfo = statusConfig[log.status] || statusConfig.SUCCESS;
+
+										return (
+											<div
+												key={log._id}
+												className="p-4 border rounded-xl hover:bg-gray-50 transition-colors">
+												<div className="flex items-start justify-between">
+													<div className="flex-1">
+														<div className="flex items-center gap-2 mb-2">
+															<span className="font-mono text-xs font-medium">{log.transactionId}</span>
+															<span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium', statusInfo.class)}>
+																<StatusIcon className="h-3 w-3" />
+																{statusInfo.label}
+															</span>
+														</div>
+														<div className="grid grid-cols-2 gap-2 text-sm">
+															<div>
+																<Text
+																	text="Plan"
+																	variant="muted"
+																	className="text-xs"
+																/>
+																<Text
+																	text={log.plan}
+																	className="text-sm font-medium"
+																/>
+															</div>
+															<div>
+																<Text
+																	text="Amount"
+																	variant="muted"
+																	className="text-xs"
+																/>
+																<Text
+																	text={log.amount === 0 ? 'Free' : formatAmount(log.amount)}
+																	className="text-sm font-semibold"
+																/>
+															</div>
+															<div>
+																<Text
+																	text="Reference"
+																	variant="muted"
+																	className="text-xs"
+																/>
+																<Text
+																	text={log.reference}
+																	className="text-sm font-mono"
+																/>
+															</div>
+															<div>
+																<Text
+																	text="Date"
+																	variant="muted"
+																	className="text-xs"
+																/>
+																<Text
+																	text={formatDate(log.date)}
+																	className="text-sm"
+																/>
+															</div>
+														</div>
+													</div>
+												</div>
+											</div>
+										);
+									})}
+								</div>
+							)}
+						</div>
 					)}
-				</CardContent>
-			</Card>
+
+					<DialogFooter className="mt-5">
+						<Button
+							variant="outline"
+							onClick={() => setIsPaymentLogsModalOpen(false)}>
+							Close
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 
 			{/* Refund Modal */}
 			<Dialog
@@ -635,7 +1032,7 @@ export default function PaymentsPage() {
 				<DialogContent className="sm:max-w-[500px]">
 					<DialogHeader>
 						<DialogTitle>Process Refund</DialogTitle>
-						<DialogDescription>Refund payment for {selectedTransaction?.churchName}</DialogDescription>
+						<DialogDescription>Refund payment for {selectedPayment?.churchName}</DialogDescription>
 					</DialogHeader>
 
 					<div className="space-y-4 py-4">
@@ -646,7 +1043,7 @@ export default function PaymentsPage() {
 									variant="muted"
 								/>
 								<Text
-									text={selectedTransaction?.id}
+									text={selectedPayment?.transactionId}
 									className="font-mono"
 								/>
 							</div>
@@ -656,16 +1053,16 @@ export default function PaymentsPage() {
 									variant="muted"
 								/>
 								<Text
-									text={formatAmount(selectedTransaction?.amount || 0, selectedTransaction?.currency || 'NGN')}
+									text={formatAmount(selectedPayment?.amount || 0)}
 									className="font-semibold"
 								/>
 							</div>
 							<div className="flex justify-between text-sm mt-2">
 								<Text
-									text="Payment Method"
+									text="Status"
 									variant="muted"
 								/>
-								<Text text={paymentMethodConfig[selectedTransaction?.paymentMethod as keyof typeof paymentMethodConfig]?.label || 'N/A'} />
+								<Text text={selectedPayment?.status || 'N/A'} />
 							</div>
 						</div>
 
@@ -674,7 +1071,7 @@ export default function PaymentsPage() {
 							<Input
 								id="refund-amount"
 								type="text"
-								placeholder={`Leave empty for full refund (${formatAmount(selectedTransaction?.amount || 0, selectedTransaction?.currency || 'NGN')})`}
+								placeholder={`Leave empty for full refund (${formatAmount(selectedPayment?.amount || 0)})`}
 								value={refundAmount}
 								onChange={(e) => setRefundAmount(e.target.value)}
 								className="mt-1.5"
@@ -702,94 +1099,9 @@ export default function PaymentsPage() {
 						</Button>
 						<Button
 							variant="destructive"
-							onClick={handleRefund}>
-							Process Refund
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
-
-			{/* Verify Payment Modal */}
-			<Dialog
-				open={isVerifyModalOpen}
-				onOpenChange={setIsVerifyModalOpen}>
-				<DialogContent className="sm:max-w-[500px]">
-					<DialogHeader>
-						<DialogTitle>Verify Payment</DialogTitle>
-						<DialogDescription>Manually mark this payment as verified</DialogDescription>
-					</DialogHeader>
-
-					<div className="space-y-4 py-4">
-						<div className="bg-gray-50 rounded-lg p-3">
-							<div className="flex justify-between text-sm">
-								<Text
-									text="Church"
-									variant="muted"
-								/>
-								<Text text={selectedTransaction?.churchName} />
-							</div>
-							<div className="flex justify-between text-sm mt-2">
-								<Text
-									text="Transaction ID"
-									variant="muted"
-								/>
-								<Text
-									text={selectedTransaction?.id}
-									className="font-mono"
-								/>
-							</div>
-							<div className="flex justify-between text-sm mt-2">
-								<Text
-									text="Amount"
-									variant="muted"
-								/>
-								<Text
-									text={formatAmount(selectedTransaction?.amount || 0, selectedTransaction?.currency || 'NGN')}
-									className="font-semibold"
-								/>
-							</div>
-							<div className="flex justify-between text-sm mt-2">
-								<Text
-									text="Payment Method"
-									variant="muted"
-								/>
-								<Text text={paymentMethodConfig[selectedTransaction?.paymentMethod as keyof typeof paymentMethodConfig]?.label || 'N/A'} />
-							</div>
-						</div>
-
-						<div>
-							<Label htmlFor="verification-note">Verification Note (Optional)</Label>
-							<Textarea
-								id="verification-note"
-								placeholder="Add any notes about this verification..."
-								value={verificationNote}
-								onChange={(e) => setVerificationNote(e.target.value)}
-								className="mt-1.5"
-								rows={3}
-							/>
-						</div>
-
-						<div className="bg-amber-50 rounded-lg p-3 border border-amber-200">
-							<div className="flex items-start gap-2">
-								<AlertCircle className="h-4 w-4 text-amber-600 mt-0.5" />
-								<Text
-									text="Marking a payment as verified will immediately update the church's subscription status and grant access to plan features."
-									variant="muted"
-									className="text-xs"
-								/>
-							</div>
-						</div>
-					</div>
-
-					<DialogFooter>
-						<Button
-							variant="outline"
-							onClick={() => setIsVerifyModalOpen(false)}>
-							Cancel
-						</Button>
-						<Button onClick={handleVerifyPayment}>
-							<CheckCircle className="h-4 w-4 mr-2" />
-							Mark as Verified
+							onClick={handleRefund}
+							disabled={isSubmitting}>
+							{isSubmitting ? 'Processing...' : 'Process Refund'}
 						</Button>
 					</DialogFooter>
 				</DialogContent>
@@ -797,3 +1109,1114 @@ export default function PaymentsPage() {
 		</>
 	);
 }
+
+// 'use client';
+
+// import { format } from 'date-fns';
+// import {
+// 	AlertCircle,
+// 	ArrowLeftRight,
+// 	Banknote,
+// 	CheckCircle,
+// 	ChevronLeft,
+// 	ChevronRight,
+// 	Clock,
+// 	CreditCard,
+// 	Download,
+// 	FileText,
+// 	Plus,
+// 	Receipt,
+// 	RefreshCw,
+// 	Search,
+// 	Wallet,
+// 	XCircle,
+// } from 'lucide-react';
+// import { useEffect, useState } from 'react';
+
+// import {
+// 	AlertDialog,
+// 	AlertDialogAction,
+// 	AlertDialogCancel,
+// 	AlertDialogContent,
+// 	AlertDialogDescription,
+// 	AlertDialogFooter,
+// 	AlertDialogHeader,
+// 	AlertDialogTitle,
+// } from '@/components/ui/alert-dialog';
+// import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+// import { Badge } from '@/components/ui/badge';
+// import { Button } from '@/components/ui/button';
+// import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+// import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+// import { Input } from '@/components/ui/input';
+// import { Label } from '@/components/ui/label';
+// import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+// import { Separator } from '@/components/ui/separator';
+// import { Textarea } from '@/components/ui/textarea';
+// import Heading from '@/components/ui/typography/Heading';
+// import { Text } from '@/components/ui/typography/Text';
+// import { useToast } from '@/hooks/use-toast';
+// import { cn } from '@/lib/utils';
+// import { Church, fetchChurches } from '@/services/churchService';
+// import { fetchPayments, fetchPaymentStats, Payment, PaymentStats, PaymentStatus, PlanType } from '@/services/paymentService';
+
+// const statusConfig: Record<PaymentStatus, { label: string; icon: any; class: string }> = {
+// 	PENDING: { label: 'Pending', icon: Clock, class: 'bg-amber-100 text-amber-700' },
+// 	SUCCESS: { label: 'Success', icon: CheckCircle, class: 'bg-green-100 text-green-700' },
+// 	FAILED: { label: 'Failed', icon: XCircle, class: 'bg-red-100 text-red-700' },
+// 	REFUNDED: { label: 'Refunded', icon: ArrowLeftRight, class: 'bg-gray-100 text-gray-700' },
+// 	CANCELLED: { label: 'Cancelled', icon: XCircle, class: 'bg-orange-100 text-orange-700' },
+// };
+
+// const paymentMethodConfig: Record<string, { label: string; icon: any }> = {
+// 	card: { label: 'Card', icon: CreditCard },
+// 	transfer: { label: 'Bank Transfer', icon: Banknote },
+// 	manual: { label: 'Manual Entry', icon: FileText },
+// };
+
+// const planOptionsList = [
+// 	{ value: 'STARTER', price: 0, currency: 'NGN' },
+// 	{ value: 'GROWTH', price: 200000, currency: 'NGN' },
+// 	{ value: 'EXPANSION', price: 500000, currency: 'NGN' },
+// 	{ value: 'ENTERPRISE', price: 1000000, currency: 'NGN' },
+// ];
+
+// const statusOptions = ['All Statuses', 'PENDING', 'SUCCESS', 'FAILED', 'REFUNDED', 'CANCELLED'];
+
+// export default function PaymentsPage() {
+// 	const { toast } = useToast();
+// 	const [searchQuery, setSearchQuery] = useState('');
+// 	const [planFilter, setPlanFilter] = useState<string>('all');
+// 	const [statusFilter, setStatusFilter] = useState<string>('all');
+// 	const [churchFilter, setChurchFilter] = useState<string>('all');
+// 	const [dateRange, setDateRange] = useState<'all' | 'week' | 'month' | 'quarter'>('all');
+// 	const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
+// 	const [isRefundModalOpen, setIsRefundModalOpen] = useState(false);
+// 	const [isManualPaymentModalOpen, setIsManualPaymentModalOpen] = useState(false);
+// 	const [isPaymentLogsModalOpen, setIsPaymentLogsModalOpen] = useState(false);
+// 	const [selectedChurchForLogs, setSelectedChurchForLogs] = useState<Church | null>(null);
+// 	const [refundReason, setRefundReason] = useState('');
+// 	const [refundAmount, setRefundAmount] = useState('');
+
+// 	// State for real data - decoupled
+// 	const [payments, setPayments] = useState<Payment[]>([]);
+// 	const [paymentStats, setPaymentStats] = useState<PaymentStats | null>(null);
+// 	const [churches, setChurches] = useState<Church[]>([]);
+
+// 	// Decoupled loading states
+// 	const [tableLoading, setTableLoading] = useState(true);
+// 	const [statsLoading, setStatsLoading] = useState(true);
+// 	const [tableError, setTableError] = useState<string | null>(null);
+// 	const [statsError, setStatsError] = useState<string | null>(null);
+// 	const [isSubmitting, setIsSubmitting] = useState(false);
+
+// 	// Pagination state
+// 	const [currentPage, setCurrentPage] = useState(1);
+// 	const [itemsPerPage, setItemsPerPage] = useState(10);
+// 	const [totalItems, setTotalItems] = useState(0);
+// 	const [paginationData, setPaginationData] = useState<any>(null);
+
+// 	// Manual payment form state
+// 	const [manualPaymentForm, setManualPaymentForm] = useState({
+// 		churchId: '',
+// 		plan: 'GROWTH' as PlanType,
+// 		notes: '',
+// 	});
+
+// 	// Fetch table data when filters change
+// 	useEffect(() => {
+// 		fetchPaymentsData();
+// 	}, [planFilter, statusFilter, churchFilter, dateRange, currentPage, itemsPerPage]);
+
+// 	// Fetch stats independently when date range changes
+// 	useEffect(() => {
+// 		fetchStatsData();
+// 	}, [dateRange]);
+
+// 	// Fetch churches on mount
+// 	useEffect(() => {
+// 		fetchChurchesData();
+// 	}, []);
+
+// 	const fetchPaymentsData = async () => {
+// 		setTableLoading(true);
+// 		setTableError(null);
+// 		try {
+// 			// Calculate date range filter
+// 			let fromDate: string | undefined;
+// 			if (dateRange !== 'all') {
+// 				const now = new Date();
+// 				if (dateRange === 'week') {
+// 					fromDate = new Date(now.setDate(now.getDate() - 7)).toISOString();
+// 				} else if (dateRange === 'month') {
+// 					fromDate = new Date(now.setMonth(now.getMonth() - 1)).toISOString();
+// 				} else if (dateRange === 'quarter') {
+// 					fromDate = new Date(now.setMonth(now.getMonth() - 3)).toISOString();
+// 				}
+// 			}
+
+// 			const paymentsData = await fetchPayments({
+// 				limit: itemsPerPage,
+// 				page: currentPage,
+// 				status: statusFilter !== 'all' ? (statusFilter as PaymentStatus) : undefined,
+// 				plan: planFilter !== 'all' ? (planFilter as PlanType) : undefined,
+// 				from: fromDate,
+// 			});
+
+// 			setPayments(paymentsData.data);
+// 			setTotalItems(paymentsData.pagination?.itemCount || paymentsData.data.length);
+// 			setPaginationData(paymentsData.pagination);
+// 		} catch (err) {
+// 			setTableError(err instanceof Error ? err.message : 'Failed to load payments');
+// 			toast({
+// 				title: 'Error',
+// 				description: 'Failed to load payment data',
+// 				variant: 'destructive',
+// 			});
+// 		} finally {
+// 			setTableLoading(false);
+// 		}
+// 	};
+
+// 	const fetchStatsData = async () => {
+// 		setStatsLoading(true);
+// 		setStatsError(null);
+// 		try {
+// 			const statsData = await fetchPaymentStats(dateRange !== 'all' ? (dateRange as any) : undefined);
+// 			setPaymentStats(statsData);
+// 		} catch (err) {
+// 			console.error('Failed to fetch payment stats:', err);
+// 			setStatsError(err instanceof Error ? err.message : 'Failed to load stats');
+// 			toast({
+// 				title: 'Error',
+// 				description: 'Failed to load payment statistics',
+// 				variant: 'destructive',
+// 			});
+// 		} finally {
+// 			setStatsLoading(false);
+// 		}
+// 	};
+
+// 	const fetchChurchesData = async () => {
+// 		try {
+// 			const response = await fetchChurches({ limit: 100 });
+// 			setChurches(response.data);
+// 		} catch (err) {
+// 			console.error('Failed to fetch churches:', err);
+// 		}
+// 	};
+
+// 	// Filter transactions locally for search and church filter
+// 	const filteredPayments = payments.filter((payment) => {
+// 		const matchesSearch =
+// 			!searchQuery ||
+// 			payment.churchName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+// 			payment.transactionId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+// 			payment.reference.toLowerCase().includes(searchQuery.toLowerCase());
+
+// 		const matchesChurch = churchFilter === 'all' || payment.churchName === churches.find((c) => c.id === churchFilter)?.name;
+
+// 		return matchesSearch && matchesChurch;
+// 	});
+
+// 	// Get payment logs for a specific church
+// 	const getChurchPaymentLogs = (churchName: string) => {
+// 		return payments.filter((p) => p.churchName === churchName).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+// 	};
+
+// 	// Stats from real data
+// 	const totalRevenue = paymentStats?.totalRevenue || 0;
+// 	const pendingAmount = paymentStats?.pendingAmount || 0;
+// 	const pendingCount = paymentStats?.pendingCount || 0;
+// 	const failedCount = paymentStats?.failedCount || 0;
+// 	const successRate = paymentStats?.successRate || '0%';
+// 	const totalCount = paymentStats?.totalCount || 0;
+
+// 	const handleRefund = async () => {
+// 		if (!selectedPayment) return;
+
+// 		setIsSubmitting(true);
+// 		try {
+// 			// TODO: Call API to process refund when endpoint is available
+// 			// await processRefund(selectedPayment._id, { amount: refundAmount, reason: refundReason });
+
+// 			toast({
+// 				title: 'Refund Processed',
+// 				description: `Refund of ${refundAmount || 'full amount'} for ${selectedPayment.churchName} has been initiated.`,
+// 			});
+// 			setIsRefundModalOpen(false);
+// 			setRefundReason('');
+// 			setRefundAmount('');
+// 			fetchPaymentsData(); // Refresh table data
+// 			fetchStatsData(); // Refresh stats
+// 		} catch (err) {
+// 			console.error('Failed to process refund:', err);
+// 			toast({
+// 				title: 'Error',
+// 				description: err instanceof Error ? err.message : 'Failed to process refund',
+// 				variant: 'destructive',
+// 			});
+// 		} finally {
+// 			setIsSubmitting(false);
+// 		}
+// 	};
+
+// 	const handleViewPaymentLogs = (church: Church) => {
+// 		setSelectedChurchForLogs(church);
+// 		setIsPaymentLogsModalOpen(true);
+// 	};
+
+// 	const formatDate = (dateString: string) => {
+// 		return format(new Date(dateString), 'MMM dd, yyyy • h:mm a');
+// 	};
+
+// 	const formatAmount = (amount: number, currency: string = 'NGN') => {
+// 		return new Intl.NumberFormat('en-NG', { style: 'currency', currency }).format(amount);
+// 	};
+
+// 	const getInitials = (name: string) => {
+// 		return name
+// 			.split(' ')
+// 			.map((word) => word[0])
+// 			.join('')
+// 			.toUpperCase()
+// 			.slice(0, 2);
+// 	};
+
+// 	const getAvatarColor = (name: string) => {
+// 		const colors = [
+// 			{ bg: 'bg-green-100', text: 'text-green-700' },
+// 			{ bg: 'bg-blue-100', text: 'text-blue-700' },
+// 			{ bg: 'bg-amber-100', text: 'text-amber-700' },
+// 			{ bg: 'bg-purple-100', text: 'text-purple-700' },
+// 			{ bg: 'bg-pink-100', text: 'text-pink-700' },
+// 			{ bg: 'bg-indigo-100', text: 'text-indigo-700' },
+// 		];
+// 		const index = name.length % colors.length;
+// 		return colors[index];
+// 	};
+
+// 	// Pagination handlers
+// 	const handlePageChange = (page: number) => {
+// 		setCurrentPage(page);
+// 	};
+
+// 	const handleItemsPerPageChange = (value: string) => {
+// 		setItemsPerPage(parseInt(value));
+// 		setCurrentPage(1); // Reset to first page when changing items per page
+// 	};
+
+// 	const totalPages = paginationData?.totalPages || Math.ceil(totalItems / itemsPerPage);
+
+// 	// Stats Card Skeleton
+// 	const StatsSkeleton = () => (
+// 		<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+// 			{[1, 2, 3, 4].map((i) => (
+// 				<Card
+// 					key={i}
+// 					className="rounded-2xl">
+// 					<CardContent className="pt-6">
+// 						<div className="flex items-center justify-between">
+// 							<div className="space-y-2">
+// 								<div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+// 								<div className="h-8 w-32 bg-gray-200 rounded animate-pulse" />
+// 							</div>
+// 							<div className="w-10 h-10 rounded-full bg-gray-200 animate-pulse" />
+// 						</div>
+// 						<div className="h-3 w-40 bg-gray-200 rounded animate-pulse mt-2" />
+// 					</CardContent>
+// 				</Card>
+// 			))}
+// 		</div>
+// 	);
+
+// 	// Table Skeleton
+// 	const TableSkeleton = () => (
+// 		<Card className="rounded-2xl">
+// 			<CardContent className="p-0">
+// 				<div
+// 					className="overflow-x-auto"
+// 					style={{ height: '80dvh', overflowY: 'auto' }}>
+// 					<table className="w-full text-sm">
+// 						<thead className="sticky top-0 z-10 bg-white shadow-sm">
+// 							<tr className="border-b border-gray-200">
+// 								<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Transaction</th>
+// 								<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Church</th>
+// 								<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Plan</th>
+// 								<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Amount</th>
+// 								<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Status</th>
+// 								<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Date</th>
+// 								<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Reference</th>
+// 								<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Actions</th>
+// 							</tr>
+// 						</thead>
+// 						<tbody>
+// 							{[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
+// 								<tr
+// 									key={i}
+// 									className="border-b">
+// 									<td className="py-3 px-4">
+// 										<div className="h-4 w-32 bg-gray-200 rounded animate-pulse" />
+// 									</td>
+// 									<td className="py-3 px-4">
+// 										<div className="flex items-center gap-3">
+// 											<div className="h-8 w-8 rounded-full bg-gray-200 animate-pulse" />
+// 											<div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+// 										</div>
+// 									</td>
+// 									<td className="py-3 px-4">
+// 										<div className="h-4 w-16 bg-gray-200 rounded animate-pulse" />
+// 									</td>
+// 									<td className="py-3 px-4">
+// 										<div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
+// 									</td>
+// 									<td className="py-3 px-4">
+// 										<div className="h-6 w-20 bg-gray-200 rounded-full animate-pulse" />
+// 									</td>
+// 									<td className="py-3 px-4">
+// 										<div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+// 									</td>
+// 									<td className="py-3 px-4">
+// 										<div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
+// 									</td>
+// 									<td className="py-3 px-4">
+// 										<div className="h-4 w-16 bg-gray-200 rounded animate-pulse" />
+// 									</td>
+// 								</tr>
+// 							))}
+// 						</tbody>
+// 					</table>
+// 				</div>
+// 			</CardContent>
+// 		</Card>
+// 	);
+
+// 	return (
+// 		<>
+// 			{/* Header */}
+// 			<div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+// 				<div>
+// 					<Heading
+// 						level={1}
+// 						text="Payments & Subscriptions"
+// 					/>
+// 					<Text
+// 						text="Manage transactions, process refunds, record manual payments, and verify payments"
+// 						variant="muted"
+// 					/>
+// 				</div>
+// 				<div className="flex gap-2">
+// 					<Button
+// 						variant="outline"
+// 						size="sm"
+// 						className="gap-2"
+// 						onClick={() => {
+// 							fetchPaymentsData();
+// 							fetchStatsData();
+// 						}}>
+// 						<RefreshCw className="h-4 w-4" />
+// 						Refresh
+// 					</Button>
+// 				</div>
+// 			</div>
+
+// 			{/* Stats Cards - Independent Loading */}
+// 			{statsLoading ? (
+// 				<StatsSkeleton />
+// 			) : statsError ? (
+// 				<Card className="rounded-2xl mb-6">
+// 					<CardContent className="py-8">
+// 						<div className="text-center text-red-600">
+// 							<p className="font-semibold">Failed to load statistics</p>
+// 							<p className="text-sm mt-1">{statsError}</p>
+// 							<Button
+// 								onClick={fetchStatsData}
+// 								variant="outline"
+// 								size="sm"
+// 								className="mt-3">
+// 								Retry
+// 							</Button>
+// 						</div>
+// 					</CardContent>
+// 				</Card>
+// 			) : (
+// 				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+// 					<Card className="rounded-2xl">
+// 						<CardContent className="pt-6">
+// 							<div className="flex items-center justify-between">
+// 								<div>
+// 									<Text
+// 										text="Total Revenue"
+// 										variant="muted"
+// 										className="text-sm"
+// 									/>
+// 									<Heading
+// 										level={2}
+// 										text={formatAmount(totalRevenue)}
+// 										className="text-2xl font-semibold mt-1"
+// 									/>
+// 								</div>
+// 								<div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+// 									<Receipt className="w-5 h-5 text-green-600" />
+// 								</div>
+// 							</div>
+// 							<Text
+// 								text={`From all successful transactions`}
+// 								variant="muted"
+// 								className="text-xs mt-2"
+// 							/>
+// 						</CardContent>
+// 					</Card>
+
+// 					<Card className="rounded-2xl">
+// 						<CardContent className="pt-6">
+// 							<div className="flex items-center justify-between">
+// 								<div>
+// 									<Text
+// 										text="Pending Payments"
+// 										variant="muted"
+// 										className="text-sm"
+// 									/>
+// 									<Heading
+// 										level={2}
+// 										text={formatAmount(pendingAmount)}
+// 										className="text-2xl font-semibold mt-1"
+// 									/>
+// 								</div>
+// 								<div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+// 									<Clock className="w-5 h-5 text-amber-600" />
+// 								</div>
+// 							</div>
+// 							<Text
+// 								text={`${pendingCount} transaction${pendingCount !== 1 ? 's' : ''} awaiting confirmation`}
+// 								variant="muted"
+// 								className="text-xs mt-2"
+// 							/>
+// 						</CardContent>
+// 					</Card>
+
+// 					<Card className="rounded-2xl">
+// 						<CardContent className="pt-6">
+// 							<div className="flex items-center justify-between">
+// 								<div>
+// 									<Text
+// 										text="Success Rate"
+// 										variant="muted"
+// 										className="text-sm"
+// 									/>
+// 									<Heading
+// 										level={2}
+// 										text={successRate}
+// 										className="text-2xl font-semibold mt-1"
+// 									/>
+// 								</div>
+// 								<div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+// 									<CheckCircle className="w-5 h-5 text-blue-600" />
+// 								</div>
+// 							</div>
+// 							<Text
+// 								text={`${failedCount} failed transactions`}
+// 								variant="muted"
+// 								className="text-xs mt-2"
+// 							/>
+// 						</CardContent>
+// 					</Card>
+
+// 					<Card className="rounded-2xl">
+// 						<CardContent className="pt-6">
+// 							<div className="flex items-center justify-between">
+// 								<div>
+// 									<Text
+// 										text="Total Transactions"
+// 										variant="muted"
+// 										className="text-sm"
+// 									/>
+// 									<Heading
+// 										level={2}
+// 										text={totalCount.toString()}
+// 										className="text-2xl font-semibold mt-1"
+// 									/>
+// 								</div>
+// 								<div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
+// 									<CreditCard className="w-5 h-5 text-purple-600" />
+// 								</div>
+// 							</div>
+// 							<Text
+// 								text="All time transactions"
+// 								variant="muted"
+// 								className="text-xs mt-2"
+// 							/>
+// 						</CardContent>
+// 					</Card>
+// 				</div>
+// 			)}
+
+// 			{/* Filters */}
+// 			<Card className="rounded-2xl mb-6">
+// 				<CardContent className="p-4">
+// 					<div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+// 						<div className="relative col-span-2 md:col-span-4 lg:col-span-1 flex-1">
+// 							<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+// 							<Input
+// 								placeholder="Search by church, transaction ID, or reference..."
+// 								value={searchQuery}
+// 								onChange={(e) => setSearchQuery(e.target.value)}
+// 								className="pl-9"
+// 							/>
+// 						</div>
+
+// 						<Select
+// 							value={churchFilter}
+// 							onValueChange={setChurchFilter}>
+// 							<SelectTrigger className="w-[180px]">
+// 								<SelectValue placeholder="All Churches" />
+// 							</SelectTrigger>
+// 							<SelectContent>
+// 								<SelectItem value="all">All Churches</SelectItem>
+// 								{churches.map((church) => (
+// 									<SelectItem
+// 										key={church.id}
+// 										value={church.id}>
+// 										{church.name}
+// 									</SelectItem>
+// 								))}
+// 							</SelectContent>
+// 						</Select>
+
+// 						<Select
+// 							value={planFilter}
+// 							onValueChange={setPlanFilter}>
+// 							<SelectTrigger className="w-[160px]">
+// 								<SelectValue placeholder="All Plans" />
+// 							</SelectTrigger>
+// 							<SelectContent>
+// 								<SelectItem value="all">All Plans</SelectItem>
+// 								<SelectItem value="ENTERPRISE">Enterprise</SelectItem>
+// 								<SelectItem value="EXPANSION">Expansion</SelectItem>
+// 								<SelectItem value="GROWTH">Growth</SelectItem>
+// 								<SelectItem value="STARTER">Starter</SelectItem>
+// 							</SelectContent>
+// 						</Select>
+
+// 						<Select
+// 							value={statusFilter}
+// 							onValueChange={setStatusFilter}>
+// 							<SelectTrigger className="w-[180px]">
+// 								<SelectValue placeholder="All Status" />
+// 							</SelectTrigger>
+// 							<SelectContent>
+// 								<SelectItem value="all">All Status</SelectItem>
+// 								<SelectItem value="PENDING">Pending</SelectItem>
+// 								<SelectItem value="SUCCESS">Success</SelectItem>
+// 								<SelectItem value="FAILED">Failed</SelectItem>
+// 								<SelectItem value="REFUNDED">Refunded</SelectItem>
+// 								<SelectItem value="CANCELLED">Cancelled</SelectItem>
+// 							</SelectContent>
+// 						</Select>
+
+// 						<div className="flex gap-2">
+// 							<Button
+// 								variant={dateRange === 'all' ? 'default' : 'outline'}
+// 								size="sm"
+// 								onClick={() => setDateRange('all')}
+// 								className="px-3">
+// 								All
+// 							</Button>
+// 							<Button
+// 								variant={dateRange === 'week' ? 'default' : 'outline'}
+// 								size="sm"
+// 								onClick={() => setDateRange('week')}
+// 								className="px-3">
+// 								Week
+// 							</Button>
+// 							<Button
+// 								variant={dateRange === 'month' ? 'default' : 'outline'}
+// 								size="sm"
+// 								onClick={() => setDateRange('month')}
+// 								className="px-3">
+// 								Month
+// 							</Button>
+// 							<Button
+// 								variant={dateRange === 'quarter' ? 'default' : 'outline'}
+// 								size="sm"
+// 								onClick={() => setDateRange('quarter')}
+// 								className="px-3">
+// 								Quarter
+// 							</Button>
+// 						</div>
+// 					</div>
+// 				</CardContent>
+// 			</Card>
+
+// 			{/* Transactions Table - Independent Loading */}
+// 			{tableLoading ? (
+// 				<TableSkeleton />
+// 			) : tableError ? (
+// 				<Card className="rounded-2xl">
+// 					<CardContent className="py-12">
+// 						<div className="text-center text-red-600">
+// 							<p className="font-semibold">Failed to load transactions</p>
+// 							<p className="text-sm mt-1">{tableError}</p>
+// 							<Button
+// 								onClick={fetchPaymentsData}
+// 								variant="outline"
+// 								size="sm"
+// 								className="mt-3">
+// 								Retry
+// 							</Button>
+// 						</div>
+// 					</CardContent>
+// 				</Card>
+// 			) : (
+// 				<Card className="rounded-2xl">
+// 					<CardContent className="p-0">
+// 						<div
+// 							className="overflow-x-auto"
+// 							style={{ height: '80dvh', overflowY: 'auto' }}>
+// 							<table className="w-full text-sm">
+// 								<thead className="sticky top-0 z-10 bg-white shadow-sm">
+// 									<tr className="border-b border-gray-200">
+// 										<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Transaction</th>
+// 										<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Church</th>
+// 										<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Plan</th>
+// 										<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Amount</th>
+// 										<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Status</th>
+// 										<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Date</th>
+// 										<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Reference</th>
+// 										<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Actions</th>
+// 									</tr>
+// 								</thead>
+// 								<tbody>
+// 									{filteredPayments.map((payment) => {
+// 										const StatusIcon = statusConfig[payment.status]?.icon || CheckCircle;
+// 										const statusInfo = statusConfig[payment.status] || statusConfig.SUCCESS;
+// 										const avatarColor = getAvatarColor(payment.churchName);
+
+// 										return (
+// 											<tr
+// 												key={payment._id}
+// 												className="border-b last:border-0 hover:bg-gray-50">
+// 												<td className="py-3 px-4">
+// 													<div>
+// 														<div className="font-mono text-xs font-medium">{payment.transactionId}</div>
+// 													</div>
+// 												</td>
+// 												<td className="py-3 px-4">
+// 													<div className="flex items-center gap-3">
+// 														<Avatar className="h-8 w-8">
+// 															<AvatarFallback className={cn(avatarColor.bg, avatarColor.text)}>{getInitials(payment.churchName)}</AvatarFallback>
+// 														</Avatar>
+// 														<div>
+// 															<span className="font-medium">{payment.churchName}</span>
+// 														</div>
+// 													</div>
+// 												</td>
+// 												<td className="py-3 px-4">
+// 													<span className="text-sm">{payment.plan}</span>
+// 												</td>
+// 												<td className="py-3 px-4 font-semibold">{payment.amount === 0 ? 'Free' : formatAmount(payment.amount)}</td>
+// 												<td className="py-3 px-4">
+// 													<span className={cn('inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium', statusInfo.class)}>
+// 														<StatusIcon className="h-3 w-3" />
+// 														{statusInfo.label}
+// 													</span>
+// 												</td>
+// 												<td className="py-3 px-4 text-gray-500 text-xs">{formatDate(payment.date)}</td>
+// 												<td className="py-3 px-4">
+// 													<span className="font-mono text-xs text-gray-500">{payment.reference}</span>
+// 												</td>
+// 												<td className="py-3 px-4">
+// 													<div className="flex gap-2">
+// 														<Button
+// 															variant="link"
+// 															size="sm"
+// 															className="h-auto p-0 text-xs text-primary-600"
+// 															onClick={() => {
+// 																const church = churches.find((c) => c.name === payment.churchName);
+// 																if (church) handleViewPaymentLogs(church);
+// 															}}>
+// 															View logs
+// 														</Button>
+// 													</div>
+// 												</td>
+// 											</tr>
+// 										);
+// 									})}
+// 								</tbody>
+// 							</table>
+// 						</div>
+
+// 						{filteredPayments.length === 0 && !tableLoading && (
+// 							<div className="text-center py-12">
+// 								<Receipt className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+// 								<Text
+// 									text="No transactions found"
+// 									className="text-gray-500"
+// 								/>
+// 								<Text
+// 									text="Try adjusting your filters"
+// 									variant="muted"
+// 									className="text-sm"
+// 								/>
+// 							</div>
+// 						)}
+
+// 						{/* Pagination Component */}
+// 						{totalItems > 0 && (
+// 							<div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 bg-gray-50">
+// 								<div className="flex items-center gap-2">
+// 									<span className="text-sm text-gray-600">Rows per page:</span>
+// 									<Select
+// 										value={itemsPerPage.toString()}
+// 										onValueChange={handleItemsPerPageChange}>
+// 										<SelectTrigger className="w-20 h-8">
+// 											<SelectValue />
+// 										</SelectTrigger>
+// 										<SelectContent>
+// 											{[5, 10, 20, 50, 100].map((size) => (
+// 												<SelectItem
+// 													key={size}
+// 													value={size.toString()}>
+// 													{size}
+// 												</SelectItem>
+// 											))}
+// 										</SelectContent>
+// 									</Select>
+// 								</div>
+
+// 								<div className="text-sm text-gray-600">
+// 									Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} results
+// 								</div>
+
+// 								<div className="flex items-center gap-2">
+// 									<Button
+// 										variant="outline"
+// 										size="sm"
+// 										onClick={() => handlePageChange(currentPage - 1)}
+// 										disabled={currentPage === 1}
+// 										className="h-8 px-2">
+// 										<ChevronLeft className="h-4 w-4" />
+// 										Previous
+// 									</Button>
+
+// 									<div className="flex gap-1">
+// 										{Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+// 											let pageNum;
+// 											if (totalPages <= 5) {
+// 												pageNum = i + 1;
+// 											} else if (currentPage <= 3) {
+// 												pageNum = i + 1;
+// 											} else if (currentPage >= totalPages - 2) {
+// 												pageNum = totalPages - 4 + i;
+// 											} else {
+// 												pageNum = currentPage - 2 + i;
+// 											}
+
+// 											return (
+// 												<Button
+// 													key={pageNum}
+// 													variant={currentPage === pageNum ? 'default' : 'outline'}
+// 													size="sm"
+// 													onClick={() => handlePageChange(pageNum)}
+// 													className="h-8 w-8 p-0">
+// 													{pageNum}
+// 												</Button>
+// 											);
+// 										})}
+// 									</div>
+
+// 									<Button
+// 										variant="outline"
+// 										size="sm"
+// 										onClick={() => handlePageChange(currentPage + 1)}
+// 										disabled={currentPage === totalPages}
+// 										className="h-8 px-2">
+// 										Next
+// 										<ChevronRight className="h-4 w-4" />
+// 									</Button>
+// 								</div>
+// 							</div>
+// 						)}
+// 					</CardContent>
+// 				</Card>
+// 			)}
+
+// 			{/* Modals remain the same */}
+// 			{/* Record Manual Payment Modal */}
+// 			<Dialog
+// 				open={isManualPaymentModalOpen}
+// 				onOpenChange={setIsManualPaymentModalOpen}>
+// 				<DialogContent className="sm:max-w-[550px]">
+// 					<DialogHeader>
+// 						<DialogTitle>Record Manual Payment</DialogTitle>
+// 						<DialogDescription>Manually record a payment received from a church</DialogDescription>
+// 					</DialogHeader>
+
+// 					<div className="space-y-4 py-4">
+// 						<div>
+// 							<Label htmlFor="church">Church *</Label>
+// 							<Select
+// 								value={manualPaymentForm.churchId}
+// 								onValueChange={(value) => setManualPaymentForm({ ...manualPaymentForm, churchId: value })}>
+// 								<SelectTrigger className="mt-1.5">
+// 									<SelectValue placeholder="Select church" />
+// 								</SelectTrigger>
+// 								<SelectContent>
+// 									{churches.map((church) => (
+// 										<SelectItem
+// 											key={church.id}
+// 											value={church.id}>
+// 											{church.name}
+// 										</SelectItem>
+// 									))}
+// 								</SelectContent>
+// 							</Select>
+// 						</div>
+
+// 						<div>
+// 							<Label htmlFor="plan">Plan *</Label>
+// 							<Select
+// 								value={manualPaymentForm.plan}
+// 								onValueChange={(value) => setManualPaymentForm({ ...manualPaymentForm, plan: value as PlanType })}>
+// 								<SelectTrigger className="mt-1.5">
+// 									<SelectValue placeholder="Select plan" />
+// 								</SelectTrigger>
+// 								<SelectContent>
+// 									{planOptionsList.map((plan) => (
+// 										<SelectItem
+// 											key={plan.value}
+// 											value={plan.value}>
+// 											{plan.value} - {formatAmount(plan.price, plan.currency)}
+// 										</SelectItem>
+// 									))}
+// 								</SelectContent>
+// 							</Select>
+// 						</div>
+
+// 						<div>
+// 							<Label htmlFor="notes">Notes (Optional)</Label>
+// 							<Textarea
+// 								id="notes"
+// 								placeholder="Add any notes about this payment..."
+// 								value={manualPaymentForm.notes}
+// 								onChange={(e) => setManualPaymentForm({ ...manualPaymentForm, notes: e.target.value })}
+// 								className="mt-1.5"
+// 								rows={3}
+// 							/>
+// 						</div>
+
+// 						<div className="bg-amber-50 rounded-lg p-3 border border-amber-200">
+// 							<div className="flex items-start gap-2">
+// 								<AlertCircle className="h-4 w-4 text-amber-600 mt-0.5" />
+// 								<Text
+// 									text="Recording a manual payment will mark the church's subscription as paid and update their billing status."
+// 									variant="muted"
+// 									className="text-xs"
+// 								/>
+// 							</div>
+// 						</div>
+// 					</div>
+
+// 					<DialogFooter>
+// 						<Button
+// 							variant="outline"
+// 							onClick={() => setIsManualPaymentModalOpen(false)}>
+// 							Cancel
+// 						</Button>
+// 					</DialogFooter>
+// 				</DialogContent>
+// 			</Dialog>
+
+// 			{/* Payment Logs Modal */}
+// 			<Dialog
+// 				open={isPaymentLogsModalOpen}
+// 				onOpenChange={setIsPaymentLogsModalOpen}>
+// 				<DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
+// 					<DialogHeader>
+// 						<DialogTitle className="flex flex-col gap-3">
+// 							<div className="text-xl">Payment Logs - {selectedChurchForLogs?.name}</div>
+// 							<DialogDescription>Complete payment history for this church</DialogDescription>
+// 						</DialogTitle>
+// 					</DialogHeader>
+
+// 					<Separator className="my-5" />
+
+// 					{selectedChurchForLogs && (
+// 						<div className="space-y-4">
+// 							{getChurchPaymentLogs(selectedChurchForLogs.name).length === 0 ? (
+// 								<div className="text-center py-8">
+// 									<Receipt className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+// 									<Text
+// 										text="No payment records found"
+// 										className="text-gray-500"
+// 									/>
+// 								</div>
+// 							) : (
+// 								<div className="space-y-3">
+// 									{getChurchPaymentLogs(selectedChurchForLogs.name).map((log) => {
+// 										const StatusIcon = statusConfig[log.status]?.icon || CheckCircle;
+// 										const statusInfo = statusConfig[log.status] || statusConfig.SUCCESS;
+
+// 										return (
+// 											<div
+// 												key={log._id}
+// 												className="p-4 border rounded-xl hover:bg-gray-50 transition-colors">
+// 												<div className="flex items-start justify-between">
+// 													<div className="flex-1">
+// 														<div className="flex items-center gap-2 mb-2">
+// 															<span className="font-mono text-xs font-medium">{log.transactionId}</span>
+// 															<span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium', statusInfo.class)}>
+// 																<StatusIcon className="h-3 w-3" />
+// 																{statusInfo.label}
+// 															</span>
+// 														</div>
+// 														<div className="grid grid-cols-2 gap-2 text-sm">
+// 															<div>
+// 																<Text
+// 																	text="Plan"
+// 																	variant="muted"
+// 																	className="text-xs"
+// 																/>
+// 																<Text
+// 																	text={log.plan}
+// 																	className="text-sm font-medium"
+// 																/>
+// 															</div>
+// 															<div>
+// 																<Text
+// 																	text="Amount"
+// 																	variant="muted"
+// 																	className="text-xs"
+// 																/>
+// 																<Text
+// 																	text={log.amount === 0 ? 'Free' : formatAmount(log.amount)}
+// 																	className="text-sm font-semibold"
+// 																/>
+// 															</div>
+// 															<div>
+// 																<Text
+// 																	text="Reference"
+// 																	variant="muted"
+// 																	className="text-xs"
+// 																/>
+// 																<Text
+// 																	text={log.reference}
+// 																	className="text-sm font-mono"
+// 																/>
+// 															</div>
+// 															<div>
+// 																<Text
+// 																	text="Date"
+// 																	variant="muted"
+// 																	className="text-xs"
+// 																/>
+// 																<Text
+// 																	text={formatDate(log.date)}
+// 																	className="text-sm"
+// 																/>
+// 															</div>
+// 														</div>
+// 													</div>
+// 												</div>
+// 											</div>
+// 										);
+// 									})}
+// 								</div>
+// 							)}
+// 						</div>
+// 					)}
+
+// 					<DialogFooter className="mt-5">
+// 						<Button
+// 							variant="outline"
+// 							onClick={() => setIsPaymentLogsModalOpen(false)}>
+// 							Close
+// 						</Button>
+// 					</DialogFooter>
+// 				</DialogContent>
+// 			</Dialog>
+
+// 			{/* Refund Modal */}
+// 			<Dialog
+// 				open={isRefundModalOpen}
+// 				onOpenChange={setIsRefundModalOpen}>
+// 				<DialogContent className="sm:max-w-[500px]">
+// 					<DialogHeader>
+// 						<DialogTitle>Process Refund</DialogTitle>
+// 						<DialogDescription>Refund payment for {selectedPayment?.churchName}</DialogDescription>
+// 					</DialogHeader>
+
+// 					<div className="space-y-4 py-4">
+// 						<div className="bg-gray-50 rounded-lg p-3">
+// 							<div className="flex justify-between text-sm">
+// 								<Text
+// 									text="Transaction ID"
+// 									variant="muted"
+// 								/>
+// 								<Text
+// 									text={selectedPayment?.transactionId}
+// 									className="font-mono"
+// 								/>
+// 							</div>
+// 							<div className="flex justify-between text-sm mt-2">
+// 								<Text
+// 									text="Original Amount"
+// 									variant="muted"
+// 								/>
+// 								<Text
+// 									text={formatAmount(selectedPayment?.amount || 0)}
+// 									className="font-semibold"
+// 								/>
+// 							</div>
+// 							<div className="flex justify-between text-sm mt-2">
+// 								<Text
+// 									text="Status"
+// 									variant="muted"
+// 								/>
+// 								<Text text={selectedPayment?.status || 'N/A'} />
+// 							</div>
+// 						</div>
+
+// 						<div>
+// 							<Label htmlFor="refund-amount">Refund Amount (Optional)</Label>
+// 							<Input
+// 								id="refund-amount"
+// 								type="text"
+// 								placeholder={`Leave empty for full refund (${formatAmount(selectedPayment?.amount || 0)})`}
+// 								value={refundAmount}
+// 								onChange={(e) => setRefundAmount(e.target.value)}
+// 								className="mt-1.5"
+// 							/>
+// 						</div>
+
+// 						<div>
+// 							<Label htmlFor="refund-reason">Refund Reason</Label>
+// 							<Textarea
+// 								id="refund-reason"
+// 								placeholder="Why is this payment being refunded?"
+// 								value={refundReason}
+// 								onChange={(e) => setRefundReason(e.target.value)}
+// 								className="mt-1.5"
+// 								rows={3}
+// 							/>
+// 						</div>
+// 					</div>
+
+// 					<DialogFooter>
+// 						<Button
+// 							variant="outline"
+// 							onClick={() => setIsRefundModalOpen(false)}>
+// 							Cancel
+// 						</Button>
+// 						<Button
+// 							variant="destructive"
+// 							onClick={handleRefund}
+// 							disabled={isSubmitting}>
+// 							{isSubmitting ? 'Processing...' : 'Process Refund'}
+// 						</Button>
+// 					</DialogFooter>
+// 				</DialogContent>
+// 			</Dialog>
+// 		</>
+// 	);
+// }

@@ -1,31 +1,17 @@
 import {
-	Activity,
-	Building2,
-	Calendar1,
-	CalendarCheck2,
-	ChartPie,
-	CheckCircle,
-	CreditCard,
-	DollarSign,
-	FileText,
-	Gift,
-	Inbox,
-	Layers,
-	LogOut,
-	MessagesSquare,
-	NotepadTextDashed,
-	Receipt,
-	Settings,
-	Tag,
-	TrendingUp,
-	UserPlus,
-	Users,
-	Wallet,
+    Activity, Building2, Calendar1, CalendarCheck2, ChartPie, CheckCircle, CreditCard, DollarSign,
+    FileText, Gift, Inbox, Layers, LogOut, MessagesSquare, NotepadTextDashed, Receipt, Settings,
+    Tag, TrendingUp, UserPlus, Users, Wallet
 } from 'lucide-react';
 
-import { ActivityRow, DepartmentRow, MemberAttendanceRecord, MemberProfile, RegularService, Role } from '@/types';
+import {
+    ActivityRow, DepartmentRow, MemberAttendanceRecord, MemberProfile, RegularService, Role
+} from '@/types';
+import { ProductAdminModule } from '@/types/productAdmin';
 
-import { EventCategory, Gender, MaritalStatus, MembershipStatus, MemberTitle, RequisitionStatus } from './enums';
+import {
+    EventCategory, Gender, MaritalStatus, MembershipStatus, MemberTitle, RequisitionStatus
+} from './enums';
 
 export const DEFAULT_ORDER = ['Opening Prayer', 'Praise and Worship', 'Bible Reading', 'Sermon', 'Offering', 'Closing Prayer'];
 
@@ -331,27 +317,31 @@ export const AdminSidebarData = {
 			title: 'Churches',
 			url: '/dashboard/churches',
 			icon: Building2,
+			permissionModule: ProductAdminModule.CHURCH_MANAGEMENT,
 		},
 		{
-			title: 'Plan Management',
-			url: '/dashboard/plans',
-			icon: CreditCard,
+			title: 'User Management',
+			url: '/dashboard/users',
+			icon: Users,
+			permissionModule: ProductAdminModule.USER_MANAGEMENT,
 		},
 		{
 			title: 'Payments',
 			url: '/dashboard/payments',
 			icon: Receipt,
+			permissionModule: ProductAdminModule.PAYMENT_MANAGEMENT,
 		},
 		{
 			title: 'Coupons',
 			url: '/dashboard/coupons',
 			icon: Gift,
+			permissionModule: ProductAdminModule.COUPON_MANAGEMENT,
 		},
 	],
 	footer: [
 		{
 			title: 'Settings',
-			url: '/dashboard/settings',
+			url: '/dashboard/settings/profile',
 			icon: Settings,
 		},
 		// Activity Log - commented out for now, can be re-added later
