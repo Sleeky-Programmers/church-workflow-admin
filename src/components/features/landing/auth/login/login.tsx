@@ -85,8 +85,6 @@ export default function LoginForm({ onForgotPassword }: LoginFormProps) {
 		}
 	};
 
-	const onSignUp = () => router.push(RouteConfig.auth.signUp);
-
 	const handleGoogleLogin = async (idToken: string) => {
 		setIsLoading(true);
 		try {
@@ -201,16 +199,6 @@ export default function LoginForm({ onForgotPassword }: LoginFormProps) {
 					/>
 				</form>
 			</Form>
-			<div className="text-center">
-				<Text variant="muted">
-					Don&apos;t have an account yet?
-					<Button
-						onClick={onSignUp}
-						variant="link">
-						Create Church Account
-					</Button>
-				</Text>
-			</div>
 		</div>
 	);
 }
