@@ -6,6 +6,7 @@ export interface OverviewMetrics {
 	newChurchesLast30Days: number;
 	totalMembers: number;
 	totalActivePlans: number;
+	totalActiveGrowthPlans: number;
 	totalStarterPlans: number;
 	churchesByPlan: {
 		GROWTH: number;

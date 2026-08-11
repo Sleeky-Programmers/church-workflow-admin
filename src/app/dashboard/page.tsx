@@ -163,10 +163,10 @@ export default function OverviewDashboard() {
 		}
 
 		// Add plan distribution insight
-		if (overview && overview.totalActivePlans > 0) {
-			const planText = overview.totalActivePlans === 1 ? 'church is' : 'churches are';
+		if (overview && overview.totalActiveGrowthPlans > 0) {
+			const planText = overview.totalActiveGrowthPlans === 1 ? 'church is' : 'churches are';
 			activitiesList.push({
-				text: `${overview.totalActivePlans} ${planText} on active Growth plan`,
+				text: `${overview.totalActiveGrowthPlans} ${planText} on active Growth plan`,
 				time: 'Current',
 				color: 'bg-purple-500',
 			});
@@ -365,7 +365,7 @@ export default function OverviewDashboard() {
 					/>
 					<StatCard
 						title="Active Growth Plans"
-						count={overviewData?.totalActivePlans?.toString() || '0'}
+						count={String(overviewData?.churchesByPlan.GROWTH) || '0'}
 						growth={`${overviewData?.totalStarterPlans || 0} on Starter plan`}
 					/>
 				</div>
@@ -436,7 +436,7 @@ export default function OverviewDashboard() {
 									<div className="flex justify-between text-sm">
 										<Span text="Active Growth Plans" />
 										<Span
-											text={overviewData.totalActivePlans.toString()}
+											text={String(overviewData.churchesByPlan.GROWTH || 1)}
 											className="font-semibold text-blue-600"
 										/>
 									</div>
@@ -518,7 +518,7 @@ export default function OverviewDashboard() {
 						<p className="text-xs text-gray-500 mt-1">New Churches (30d)</p>
 					</div>
 					<div className="bg-gray-50 rounded-lg p-4 text-center">
-						<p className="text-2xl font-bold text-gray-900">{overviewData.totalActivePlans}</p>
+						<p className="text-2xl font-bold text-gray-900">{overviewData.churchesByPlan.GROWTH || 0}</p>
 						<p className="text-xs text-gray-500 mt-1">Active Growth Plans</p>
 					</div>
 					<div className="bg-gray-50 rounded-lg p-4 text-center">
