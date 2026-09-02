@@ -1,8 +1,8 @@
 'use client';
 
 import {
-    ChevronLeft, ChevronRight, Church as ChurchIcon, CreditCard, Lock, Mail, MapPin, Search, Unlock,
-    UserCog, Users, X
+    Calendar, ChevronLeft, ChevronRight, Church as ChurchIcon, Clock, CreditCard, Lock, Mail, MapPin,
+    Search, Unlock, UserCog, Users, X
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -17,6 +17,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import {
     Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle
 } from '@/components/ui/dialog';
+import {
+    Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle
+} from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -29,9 +32,9 @@ import { Text } from '@/components/ui/typography/Text';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import {
-    blockChurch, Church, fetchChurchById, fetchChurches, PlanType, SubscriptionStatus, unblockChurch
+    blockChurch, Church, fetchChurchById, fetchChurches, PlanType, SubscriptionStatus, unblockChurch,
+    updateChurchPlan
 } from '@/services/churchService';
-import { validateCoupon } from '@/services/couponService';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useSearchStore } from '@/stores/useSearchStore';
 
@@ -106,15 +109,14 @@ export default function ChurchesPage() {
 	const [planFilter, setPlanFilter] = useState<string>('all');
 	const [statusFilter, setStatusFilter] = useState<string>('all');
 	const [selectedChurch, setSelectedChurch] = useState<Church | null>(null);
-	const [isModalOpen, setIsModalOpen] = useState(false);
+	const [isDetailsDrawerOpen, setIsDetailsDrawerOpen] = useState(false);
+	const [isDetailsLoading, setIsDetailsLoading] = useState(false);
 	const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
 	const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
 	const [isBlockConfirmOpen, setIsBlockConfirmOpen] = useState(false);
 	const [blockReason, setBlockReason] = useState('');
 	const [blockNote, setBlockNote] = useState('');
 	const [selectedPlan, setSelectedPlan] = useState('');
-	const [couponCode, setCouponCode] = useState('');
-	const [discountApplied, setDiscountApplied] = useState<{ type: string; value: number } | null>(null);
 	const [churches, setChurches] = useState<Church[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [tableLoading, setTableLoading] = useState(false);
@@ -180,17 +182,20 @@ export default function ChurchesPage() {
 		}
 	};
 
-	const fetchSingleChurch = async (id: string) => {
+	const loadChurchDetails = async (id: string) => {
+		setIsDetailsLoading(true);
 		try {
-			const church = await fetchChurchById(id);
-			setSelectedChurch(church);
+			const extraDetails = await fetchChurchById(id);
+			setSelectedChurch((prev) => (prev && prev.id === id ? { ...prev, ...extraDetails } : prev));
 		} catch (err) {
 			console.error('Failed to fetch church details:', err);
 			toast({
 				title: 'Error',
-				description: 'Failed to load church details',
+				description: 'Failed to load full church details',
 				variant: 'destructive',
 			});
+		} finally {
+			setIsDetailsLoading(false);
 		}
 	};
 
@@ -236,7 +241,8 @@ export default function ChurchesPage() {
 
 	const handleViewDetails = (church: Church) => {
 		setSelectedChurch(church);
-		setIsModalOpen(true);
+		setIsDetailsDrawerOpen(true);
+		loadChurchDetails(church.id);
 	};
 
 	const handleOpenBlockConfirm = () => {
@@ -321,62 +327,31 @@ export default function ChurchesPage() {
 	};
 
 	const handlePlanChange = async () => {
-		if (!selectedChurch || !selectedPlan) return;
+		if (!selectedChurch || !selectedPlan || selectedPlan === selectedChurch.plan) return;
 
+		const previousPlan = selectedChurch.plan;
 		setIsSubmitting(true);
 		try {
-			// TODO: Call API to update church plan when endpoint is available
-			const updatedChurches = churches.map((c) => (c.id === selectedChurch.id ? { ...c, plan: selectedPlan as PlanType } : c));
+			const result = await updateChurchPlan(selectedChurch.id, selectedPlan as PlanType);
+
+			const updatedChurches = churches.map((c) =>
+				c.id === selectedChurch.id ? { ...c, plan: result.plan, subscriptionStatus: 'Active' as SubscriptionStatus } : c
+			);
 			setChurches(updatedChurches);
+			setSelectedChurch((prev) => (prev ? { ...prev, plan: result.plan, subscriptionStatus: 'Active' } : prev));
 
 			toast({
 				title: 'Plan Updated',
-				description: `${selectedChurch.name} plan changed from ${selectedChurch.plan} to ${selectedPlan}`,
+				description: `${selectedChurch.name} plan changed from ${previousPlan} to ${result.plan}.`,
 			});
 
 			setIsPlanModalOpen(false);
 			setSelectedPlan('');
-			setCouponCode('');
-			setDiscountApplied(null);
 		} catch (err) {
 			console.error('Failed to update plan:', err);
 			toast({
 				title: 'Error',
 				description: err instanceof Error ? err.message : 'Failed to update plan',
-				variant: 'destructive',
-			});
-		} finally {
-			setIsSubmitting(false);
-		}
-	};
-
-	const handleApplyCoupon = async () => {
-		if (!couponCode) return;
-
-		setIsSubmitting(true);
-		try {
-			const result = await validateCoupon(couponCode);
-			if (result.valid && result.coupon) {
-				setDiscountApplied({
-					type: result.coupon.discountType === 'PERCENTAGE' ? 'percentage' : 'fixed',
-					value: result.coupon.discount,
-				});
-				toast({
-					title: 'Coupon Applied',
-					description: `${result.coupon.discount}${result.coupon.discountType === 'PERCENTAGE' ? '%' : '₦'} discount applied`,
-				});
-			} else {
-				toast({
-					title: 'Invalid Coupon',
-					description: result.message || 'The coupon code you entered is not valid',
-					variant: 'destructive',
-				});
-			}
-		} catch (err) {
-			console.error('Failed to validate coupon:', err);
-			toast({
-				title: 'Error',
-				description: 'Failed to validate coupon',
 				variant: 'destructive',
 			});
 		} finally {
@@ -508,7 +483,7 @@ export default function ChurchesPage() {
 
 			{/* Stats Cards */}
 			<div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
-				<Card className="rounded-2xl">
+				<Card className="rounded-2xl transition-shadow duration-200 hover:shadow-md">
 					<CardContent className="pt-6">
 						<div className="flex items-center justify-between">
 							<div>
@@ -530,7 +505,7 @@ export default function ChurchesPage() {
 					</CardContent>
 				</Card>
 
-				<Card className="rounded-2xl">
+				<Card className="rounded-2xl transition-shadow duration-200 hover:shadow-md">
 					<CardContent className="pt-6">
 						<div className="flex items-center justify-between">
 							<div>
@@ -552,7 +527,7 @@ export default function ChurchesPage() {
 					</CardContent>
 				</Card>
 
-				<Card className="rounded-2xl">
+				<Card className="rounded-2xl transition-shadow duration-200 hover:shadow-md">
 					<CardContent className="pt-6">
 						<div className="flex items-center justify-between">
 							<div>
@@ -574,7 +549,7 @@ export default function ChurchesPage() {
 					</CardContent>
 				</Card>
 
-				<Card className="rounded-2xl">
+				<Card className="rounded-2xl transition-shadow duration-200 hover:shadow-md">
 					<CardContent className="pt-6">
 						<div className="flex items-center justify-between">
 							<div>
@@ -686,7 +661,7 @@ export default function ChurchesPage() {
 														<Button
 															variant="outline"
 															size="sm"
-															className="h-8"
+															className="h-8 transition-all hover:scale-105 hover:bg-primary-50 hover:border-primary-300 hover:text-primary-700"
 															onClick={() => handleViewDetails(church)}>
 															View
 														</Button>
@@ -806,39 +781,40 @@ export default function ChurchesPage() {
 				</div>
 			)}
 
-			{/* Church Details Modal */}
-			<Dialog
-				open={isModalOpen}
-				onOpenChange={setIsModalOpen}>
-				<DialogContent className="sm:max-w-[550px] max-h-[85vh] overflow-y-auto">
-					<DialogHeader>
-						<DialogTitle className="flex items-center justify-between">
-							<div className="flex items-center gap-3">
-								<Avatar className="h-10 w-10">
-									<AvatarFallback className={cn('text-sm', getAvatarColor(selectedChurch?.name || '').bg, getAvatarColor(selectedChurch?.name || '').text)}>
-										{getInitials(selectedChurch?.name || '')}
-									</AvatarFallback>
-								</Avatar>
-								<div>
-									<div className="text-xl">{selectedChurch?.name}</div>
-									<div className="flex items-center gap-2 mt-0.5">
-										<span className={cn('px-2 py-0.5 rounded-full text-xs font-medium', selectedChurch && planBadgeClass[selectedChurch.plan])}>
-											{selectedChurch?.plan}
-										</span>
-										<span className={cn('px-2 py-0.5 rounded-full text-xs font-medium', selectedChurch && getStatusBadge(selectedChurch.subscriptionStatus))}>
-											{selectedChurch?.subscriptionStatus}
-										</span>
-										{selectedChurch?.isBlocked && <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">Blocked</span>}
-									</div>
+			{/* Church Details Drawer */}
+			<Drawer
+				open={isDetailsDrawerOpen}
+				onOpenChange={setIsDetailsDrawerOpen}
+				direction="right">
+				<DrawerContent
+					direction="right"
+					className="p-0">
+					<DrawerHeader className="text-left px-6 pt-6">
+						<DrawerTitle className="flex items-center gap-3">
+							<Avatar className="h-10 w-10">
+								<AvatarFallback className={cn('text-sm', getAvatarColor(selectedChurch?.name || '').bg, getAvatarColor(selectedChurch?.name || '').text)}>
+									{getInitials(selectedChurch?.name || '')}
+								</AvatarFallback>
+							</Avatar>
+							<div>
+								<div className="text-xl">{selectedChurch?.name}</div>
+								<div className="flex flex-wrap items-center gap-2 mt-0.5">
+									<span className={cn('px-2 py-0.5 rounded-full text-xs font-medium', selectedChurch && planBadgeClass[selectedChurch.plan])}>
+										{selectedChurch?.plan}
+									</span>
+									<span className={cn('px-2 py-0.5 rounded-full text-xs font-medium', selectedChurch && getStatusBadge(selectedChurch.subscriptionStatus))}>
+										{selectedChurch?.subscriptionStatus}
+									</span>
+									{selectedChurch?.isBlocked && <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">Blocked</span>}
 								</div>
 							</div>
-						</DialogTitle>
-						<DialogDescription>Church information and subscription details</DialogDescription>
-					</DialogHeader>
+						</DrawerTitle>
+						<DrawerDescription>Church information and subscription details</DrawerDescription>
+					</DrawerHeader>
 
-					<Separator className="my-3" />
+					<Separator />
 
-					<div className="space-y-4">
+					<div className="space-y-5 px-6 py-5">
 						{/* Location Section */}
 						<div>
 							<div className="flex items-center gap-2 mb-2">
@@ -848,11 +824,18 @@ export default function ChurchesPage() {
 									className="font-medium text-sm"
 								/>
 							</div>
-							<div className="pl-6">
+							<div className="pl-6 space-y-1">
 								<Text
-									text={selectedChurch?.location || 'N/A'}
+									text={selectedChurch?.address || selectedChurch?.location || 'N/A'}
 									className="text-sm"
 								/>
+								{(selectedChurch?.state || selectedChurch?.country) && (
+									<Text
+										text={[selectedChurch?.state, selectedChurch?.country].filter(Boolean).join(', ')}
+										variant="muted"
+										className="text-xs"
+									/>
+								)}
 							</div>
 						</div>
 
@@ -888,8 +871,103 @@ export default function ChurchesPage() {
 										className="text-sm font-medium"
 									/>
 								</div>
+								{selectedChurch?.alias && (
+									<div>
+										<Text
+											text="Alias"
+											variant="muted"
+											className="text-xs"
+										/>
+										<Text
+											text={selectedChurch.alias}
+											className="text-sm font-medium"
+										/>
+									</div>
+								)}
+								{selectedChurch?.defaultCurrency && (
+									<div>
+										<Text
+											text="Currency"
+											variant="muted"
+											className="text-xs"
+										/>
+										<Text
+											text={selectedChurch.defaultCurrency}
+											className="text-sm font-medium"
+										/>
+									</div>
+								)}
 							</div>
 						</div>
+
+						{/* Owner / Contact Section */}
+						{(selectedChurch?.superAdmin || isDetailsLoading) && (
+							<div>
+								<div className="flex items-center gap-2 mb-2">
+									<UserCog className="h-4 w-4 text-gray-500" />
+									<Text
+										text="Church Owner"
+										className="font-medium text-sm"
+									/>
+								</div>
+								<div className="pl-6 space-y-1">
+									{isDetailsLoading && !selectedChurch?.superAdmin ? (
+										<div className="space-y-2">
+											<div className="h-3.5 w-32 bg-gray-100 rounded animate-pulse" />
+											<div className="h-3.5 w-44 bg-gray-100 rounded animate-pulse" />
+										</div>
+									) : selectedChurch?.superAdmin ? (
+										<>
+											<Text
+												text={selectedChurch.superAdmin.fullName}
+												className="text-sm font-medium"
+											/>
+											<div className="flex items-center gap-1.5 text-gray-500">
+												<Mail className="h-3.5 w-3.5" />
+												<Text
+													text={selectedChurch.superAdmin.email}
+													className="text-sm"
+												/>
+											</div>
+										</>
+									) : null}
+								</div>
+							</div>
+						)}
+
+						{/* Timezone */}
+						{selectedChurch?.timeZone && (
+							<div>
+								<div className="flex items-center gap-2 mb-2">
+									<Clock className="h-4 w-4 text-gray-500" />
+									<Text
+										text="Timezone"
+										className="font-medium text-sm"
+									/>
+								</div>
+								<Text
+									text={selectedChurch.timeZone}
+									className="text-sm pl-6"
+								/>
+							</div>
+						)}
+
+						{/* Registered date */}
+						{selectedChurch?.createdAt && (
+							<div>
+								<div className="flex items-center gap-2 mb-2">
+									<Calendar className="h-4 w-4 text-gray-500" />
+									<Text
+										text="Registered On"
+										className="font-medium text-sm"
+									/>
+								</div>
+								<Text
+									text={new Date(selectedChurch.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
+									className="text-sm pl-6"
+								/>
+							</div>
+						)}
 
 						{/* Block Info if blocked */}
 						{selectedChurch?.isBlocked && selectedChurch?.blockReason && (
@@ -918,13 +996,11 @@ export default function ChurchesPage() {
 						)}
 					</div>
 
-					<Separator className="my-3" />
-
-					<div className="flex justify-between gap-3">
+					<DrawerFooter className="flex-row justify-between gap-3 border-t px-6 py-4">
 						{selectedChurch?.isBlocked ? (
 							<Button
 								variant="outline"
-								className="gap-2 text-green-600 hover:text-green-700 hover:bg-green-50"
+								className="gap-2 text-green-600 hover:text-green-700 hover:bg-green-50 transition-colors"
 								onClick={handleOpenBlockConfirm}>
 								<Unlock className="h-4 w-4" />
 								Unblock Church
@@ -932,26 +1008,26 @@ export default function ChurchesPage() {
 						) : (
 							<Button
 								variant="outline"
-								className="gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+								className="gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 transition-colors"
 								onClick={handleOpenBlockConfirm}>
 								<Lock className="h-4 w-4" />
 								Block Church
 							</Button>
 						)}
 						<div className="flex gap-3">
+							<DrawerClose asChild>
+								<Button variant="outline">Close</Button>
+							</DrawerClose>
 							<Button
-								variant="outline"
-								onClick={() => setIsModalOpen(false)}>
-								Close
-							</Button>
-							<Button onClick={openPlanModal}>
+								onClick={openPlanModal}
+								className="transition-transform hover:scale-[1.02]">
 								<CreditCard className="h-4 w-4 mr-2" />
 								Manage Plan
 							</Button>
 						</div>
-					</div>
-				</DialogContent>
-			</Dialog>
+					</DrawerFooter>
+				</DrawerContent>
+			</Drawer>
 
 			{/* Block/Unblock Confirmation Dialog with Reason Input */}
 			<AlertDialog
@@ -1044,10 +1120,12 @@ export default function ChurchesPage() {
 			<Dialog
 				open={isPlanModalOpen}
 				onOpenChange={setIsPlanModalOpen}>
-				<DialogContent className="sm:max-w-[550px]">
+				<DialogContent
+					className="sm:max-w-[550px]"
+					showClose={false}>
 					<DialogHeader>
 						<DialogTitle>Manage Plan - {selectedChurch?.name}</DialogTitle>
-						<DialogDescription>Change subscription plan or apply discounts</DialogDescription>
+						<DialogDescription>Change this church's subscription plan. This is an administrative override and takes effect immediately, without payment.</DialogDescription>
 					</DialogHeader>
 
 					<div className="space-y-4 py-4">
@@ -1087,44 +1165,16 @@ export default function ChurchesPage() {
 									<div
 										key={plan.id}
 										className={cn(
-											'border rounded-xl p-3 cursor-pointer transition-all',
-											selectedPlan === plan.name ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500' : 'border-gray-200 hover:border-gray-300'
+											'border rounded-xl p-3 cursor-pointer transition-all hover:shadow-sm',
+											selectedPlan === plan.id ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500' : 'border-gray-200 hover:border-gray-300'
 										)}
-										onClick={() => setSelectedPlan(plan.name)}>
+										onClick={() => setSelectedPlan(plan.id)}>
 										<div className="font-medium text-sm">{plan.name}</div>
 										<div className="text-xs text-gray-500 mt-0.5">{plan.price}</div>
-										{selectedChurch?.plan === plan.name && <div className="text-xs text-primary-600 mt-1">✓ Current plan</div>}
+										{selectedChurch?.plan === plan.id && <div className="text-xs text-primary-600 mt-1">✓ Current plan</div>}
 									</div>
 								))}
 							</div>
-						</div>
-
-						{/* Coupon/Discount Section */}
-						<div>
-							<Text
-								text="Apply Coupon / Discount"
-								className="text-sm font-medium mb-2"
-							/>
-							<div className="flex gap-2">
-								<Input
-									placeholder="Enter coupon code"
-									value={couponCode}
-									onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-									className="flex-1"
-									disabled={isSubmitting}
-								/>
-								<Button
-									variant="outline"
-									onClick={handleApplyCoupon}
-									disabled={isSubmitting}>
-									Apply
-								</Button>
-							</div>
-							{discountApplied && (
-								<div className="mt-2 p-2 bg-green-50 rounded-lg text-sm text-green-700">
-									✓ Discount applied! {discountApplied.type === 'percentage' ? `${discountApplied.value}% off` : `₦${discountApplied.value.toLocaleString()} off`}
-								</div>
-							)}
 						</div>
 					</div>
 

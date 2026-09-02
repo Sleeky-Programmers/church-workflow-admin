@@ -2,11 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Link } from "@/components/ui/link";
 import { Span, Text } from "@/components/ui/typography/Text";
 import Heading from "@/components/ui/typography/Heading";
+import { RouteConfig } from "@/config/routes";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 export default function HeroSection() {
   const [mounted, setMounted] = useState(false);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
   useEffect(() => {
     setMounted(true);
@@ -38,12 +42,14 @@ export default function HeroSection() {
             seamlessly. From attendance tracking to event planning, everything
             your church needs to thrive is built in.
           </Text>
-          <Button size="lg" variant="default">
-            Get Started
-            <Span variant="default" className="ml-2">
-              →
-            </Span>
-          </Button>
+          <Link href={isAuthenticated ? RouteConfig.dashboard.home : RouteConfig.auth.signIn}>
+            <Button size="lg" variant="default" className="group transition-transform hover:scale-105">
+              {isAuthenticated ? "Go to Dashboard" : "Get Started"}
+              <Span variant="default" className="ml-2 inline-block transition-transform group-hover:translate-x-1">
+                →
+              </Span>
+            </Button>
+          </Link>
         </div>
         <div
           className={`relative transition-all duration-1000 delay-300 ${

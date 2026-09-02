@@ -320,7 +320,7 @@ export const AdminSidebarData = {
 			permissionModule: ProductAdminModule.CHURCH_MANAGEMENT,
 		},
 		{
-			title: 'User Management',
+			title: 'Member Management',
 			url: '/dashboard/users',
 			icon: Users,
 			permissionModule: ProductAdminModule.USER_MANAGEMENT,

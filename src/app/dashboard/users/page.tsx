@@ -1,8 +1,9 @@
 'use client';
 
 import {
-    Activity, Building2, CheckCircle, Crown, Loader2, Lock, Mail, Search, Unlock, User, UserCheck,
-    UserCog, Users, UserX, X
+    Activity, Baby, Briefcase, Building2, Cake, CalendarCheck, CheckCircle, Crown, GraduationCap,
+    Heart, HeartHandshake, HomeIcon, Loader2, Lock, Mail, MapPin, Phone, Search, Unlock, User,
+    UserCheck, UserCog, Users, UserX, X
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
@@ -11,11 +12,12 @@ import {
     AlertDialogFooter, AlertDialogHeader, AlertDialogTitle
 } from '@/components/ui/alert-dialog';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
-    Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle
-} from '@/components/ui/dialog';
+    Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle
+} from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue
@@ -62,7 +64,7 @@ export default function UsersPage() {
 	const [selectedUser, setSelectedUser] = useState<MemberManagementData | null>(null);
 	const [selectedChurch, setSelectedChurch] = useState<any>(null);
 	const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
-	const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+	const [isViewDrawerOpen, setIsViewDrawerOpen] = useState(false);
 
 	// State for real data
 	const [users, setUsers] = useState<MemberManagementData[]>([]);
@@ -186,7 +188,7 @@ export default function UsersPage() {
 		const church = churches.find((c) => c.id === user.churchId);
 		setSelectedChurch(church);
 		await loadMemberDetails(user.id);
-		setIsViewModalOpen(true);
+		setIsViewDrawerOpen(true);
 		setViewLoading(null);
 	};
 
@@ -218,6 +220,15 @@ export default function UsersPage() {
 		loadStats();
 	}, [pagination.page, pagination.limit, selectedChurchId, roleFilter, statusFilter, searchQuery]);
 
+	const formatDateOnly = (dateString: string) => {
+		if (!dateString) return '—';
+		return new Date(dateString).toLocaleDateString('en-NG', {
+			year: 'numeric',
+			month: 'short',
+			day: 'numeric',
+		});
+	};
+
 	const formatDate = (dateString: string) => {
 		if (!dateString) return 'Never';
 		return new Date(dateString).toLocaleDateString('en-NG', {
@@ -245,7 +256,7 @@ export default function UsersPage() {
 				<div>
 					<Heading
 						level={1}
-						text="User Management"
+						text="Member Management"
 					/>
 					<Text
 						text="Manage members across all churches"
@@ -256,7 +267,7 @@ export default function UsersPage() {
 
 			{/* Stats Cards */}
 			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-				<Card className="rounded-2xl">
+				<Card className="rounded-2xl transition-shadow duration-200 hover:shadow-md">
 					<CardContent className="pt-6">
 						<div className="flex items-center justify-between">
 							<div>
@@ -278,7 +289,7 @@ export default function UsersPage() {
 					</CardContent>
 				</Card>
 
-				<Card className="rounded-2xl">
+				<Card className="rounded-2xl transition-shadow duration-200 hover:shadow-md">
 					<CardContent className="pt-6">
 						<div className="flex items-center justify-between">
 							<div>
@@ -300,7 +311,7 @@ export default function UsersPage() {
 					</CardContent>
 				</Card>
 
-				<Card className="rounded-2xl">
+				<Card className="rounded-2xl transition-shadow duration-200 hover:shadow-md">
 					<CardContent className="pt-6">
 						<div className="flex items-center justify-between">
 							<div>
@@ -322,7 +333,7 @@ export default function UsersPage() {
 					</CardContent>
 				</Card>
 
-				<Card className="rounded-2xl">
+				<Card className="rounded-2xl transition-shadow duration-200 hover:shadow-md">
 					<CardContent className="pt-6">
 						<div className="flex items-center justify-between">
 							<div>
@@ -507,7 +518,7 @@ export default function UsersPage() {
 													<Button
 														variant="outline"
 														size="sm"
-														className="h-8"
+														className="h-8 transition-all hover:scale-105 hover:bg-primary-50 hover:border-primary-300 hover:text-primary-700"
 														onClick={() => handleViewUser(user)}
 														disabled={viewLoading === user.id}>
 														{viewLoading === user.id ? (
@@ -617,13 +628,16 @@ export default function UsersPage() {
 				</CardContent>
 			</Card>
 
-			{/* View User Details Modal */}
-			<Dialog
-				open={isViewModalOpen}
-				onOpenChange={setIsViewModalOpen}>
-				<DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
-					<DialogHeader>
-						<DialogTitle className="flex items-center gap-3">
+			{/* View User Details Drawer */}
+			<Drawer
+				open={isViewDrawerOpen}
+				onOpenChange={setIsViewDrawerOpen}
+				direction="right">
+				<DrawerContent
+					direction="right"
+					className="p-0">
+					<DrawerHeader className="text-left px-6 pt-6">
+						<DrawerTitle className="flex items-center gap-3">
 							<Avatar className="h-10 w-10">
 								<AvatarFallback className="bg-gray-100 text-gray-600">
 									{selectedUser?.name
@@ -636,7 +650,7 @@ export default function UsersPage() {
 							</Avatar>
 							<div>
 								<div className="text-xl">{selectedUser?.name}</div>
-								<div className="flex items-center gap-2 mt-0.5">
+								<div className="flex flex-wrap items-center gap-2 mt-0.5">
 									<span
 										className={cn(
 											'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium',
@@ -658,11 +672,11 @@ export default function UsersPage() {
 									)}
 								</div>
 							</div>
-						</DialogTitle>
-						<DialogDescription>Member details and attendance information</DialogDescription>
-					</DialogHeader>
+						</DrawerTitle>
+						<DrawerDescription>Member details and attendance information</DrawerDescription>
+					</DrawerHeader>
 
-					<Separator className="my-5 mt-3" />
+					<Separator />
 
 					{loadingDetails ? (
 						<div className="py-8 text-center flex flex-col items-center gap-3">
@@ -674,7 +688,7 @@ export default function UsersPage() {
 						</div>
 					) : (
 						memberDetails && (
-							<div className="space-y-4">
+							<div className="space-y-5 px-6 py-5">
 								{/* Church Information */}
 								<div>
 									<div className="flex items-center gap-2 mb-2">
@@ -686,11 +700,29 @@ export default function UsersPage() {
 										/>
 									</div>
 									<div className="pl-6">
-										<div className="p-3 bg-gray-50 rounded-lg">
+										<div className="p-3 bg-gray-50 rounded-lg space-y-1">
 											<Text
-												text={selectedChurch?.name || 'N/A'}
+												text={selectedChurch?.name || memberDetails.member.church?.name || 'N/A'}
 												className="font-medium"
 											/>
+											{memberDetails.member.church?.email && (
+												<div className="flex items-center gap-1.5 text-gray-500">
+													<Mail className="h-3.5 w-3.5" />
+													<Text
+														text={memberDetails.member.church.email}
+														className="text-xs"
+													/>
+												</div>
+											)}
+											{memberDetails.member.church?.phone && (
+												<div className="flex items-center gap-1.5 text-gray-500">
+													<Phone className="h-3.5 w-3.5" />
+													<Text
+														text={memberDetails.member.church.phone}
+														className="text-xs"
+													/>
+												</div>
+											)}
 										</div>
 									</div>
 								</div>
@@ -739,8 +771,200 @@ export default function UsersPage() {
 												className="text-sm"
 											/>
 										</div>
+										{memberDetails.member.address && (
+											<div className="flex items-start justify-between py-1 gap-4">
+												<Text
+													text="Address"
+													variant="muted"
+													className="text-xs shrink-0"
+												/>
+												<Text
+													text={memberDetails.member.address}
+													className="text-sm text-right"
+												/>
+											</div>
+										)}
 									</div>
 								</div>
+
+								{/* Personal Information */}
+								<div>
+									<div className="flex items-center gap-2 mb-2">
+										<User className="h-4 w-4 text-gray-500" />
+										<Text
+											text="Personal Information"
+											variant="blue"
+											className="font-medium text-sm"
+										/>
+									</div>
+									<div className="pl-6 space-y-2">
+										{memberDetails.member.title && (
+											<div className="flex items-center justify-between py-1">
+												<Text
+													text="Title"
+													variant="muted"
+													className="text-xs"
+												/>
+												<Text
+													text={memberDetails.member.title}
+													className="text-sm"
+												/>
+											</div>
+										)}
+										{memberDetails.member.birthday && (
+											<div className="flex items-center justify-between py-1">
+												<span className="flex items-center gap-1.5 text-gray-400 text-xs">
+													<Cake className="h-3.5 w-3.5" />
+													Birthday
+												</span>
+												<Text
+													text={formatDateOnly(memberDetails.member.birthday)}
+													className="text-sm"
+												/>
+											</div>
+										)}
+										{memberDetails.member.maritalStatus && (
+											<div className="flex items-center justify-between py-1">
+												<span className="flex items-center gap-1.5 text-gray-400 text-xs">
+													<Heart className="h-3.5 w-3.5" />
+													Marital Status
+												</span>
+												<Text
+													text={memberDetails.member.maritalStatus}
+													className="text-sm"
+												/>
+											</div>
+										)}
+										{memberDetails.member.dateOfMarriage && (
+											<div className="flex items-center justify-between py-1">
+												<Text
+													text="Date of Marriage"
+													variant="muted"
+													className="text-xs"
+												/>
+												<Text
+													text={formatDateOnly(memberDetails.member.dateOfMarriage)}
+													className="text-sm"
+												/>
+											</div>
+										)}
+										{memberDetails.member.occupation && (
+											<div className="flex items-center justify-between py-1">
+												<span className="flex items-center gap-1.5 text-gray-400 text-xs">
+													<Briefcase className="h-3.5 w-3.5" />
+													Occupation
+												</span>
+												<Text
+													text={memberDetails.member.occupation}
+													className="text-sm"
+												/>
+											</div>
+										)}
+										{memberDetails.member.educationalBackground && (
+											<div className="flex items-center justify-between py-1">
+												<span className="flex items-center gap-1.5 text-gray-400 text-xs">
+													<GraduationCap className="h-3.5 w-3.5" />
+													Education
+												</span>
+												<Text
+													text={memberDetails.member.educationalBackground}
+													className="text-sm"
+												/>
+											</div>
+										)}
+										{memberDetails.member.previousChurchMembership && (
+											<div className="flex items-center justify-between py-1">
+												<span className="flex items-center gap-1.5 text-gray-400 text-xs">
+													<HomeIcon className="h-3.5 w-3.5" />
+													Previous Church
+												</span>
+												<Text
+													text={memberDetails.member.previousChurchMembership}
+													className="text-sm"
+												/>
+											</div>
+										)}
+										{memberDetails.member.isBaptized !== null && (
+											<div className="flex items-center justify-between py-1">
+												<span className="flex items-center gap-1.5 text-gray-400 text-xs">
+													<Baby className="h-3.5 w-3.5" />
+													Baptized
+												</span>
+												<Text
+													text={memberDetails.member.isBaptized ? 'Yes' : 'No'}
+													className="text-sm"
+												/>
+											</div>
+										)}
+										{memberDetails.member.cellGroupName && (
+											<div className="flex items-center justify-between py-1">
+												<Text
+													text="Cell Group"
+													variant="muted"
+													className="text-xs"
+												/>
+												<Text
+													text={memberDetails.member.cellGroupName}
+													className="text-sm"
+												/>
+											</div>
+										)}
+									</div>
+								</div>
+
+								{/* Ministries & Volunteering */}
+								{(memberDetails.member.ministries || memberDetails.member.volunteerPreferences) && (
+									<div>
+										<div className="flex items-center gap-2 mb-2">
+											<HeartHandshake className="h-4 w-4 text-gray-500" />
+											<Text
+												text="Ministries & Volunteering"
+												variant="blue"
+												className="font-medium text-sm"
+											/>
+										</div>
+										<div className="pl-6 space-y-2">
+											{memberDetails.member.ministries && (
+												<div>
+													<Text
+														text="Ministries"
+														variant="muted"
+														className="text-xs mb-1"
+													/>
+													<div className="flex flex-wrap gap-1.5">
+														{memberDetails.member.ministries.split(',').map((ministry) => (
+															<Badge
+																key={ministry.trim()}
+																variant="outline"
+																className="font-normal transition-colors hover:bg-primary-50">
+																{ministry.trim()}
+															</Badge>
+														))}
+													</div>
+												</div>
+											)}
+											{memberDetails.member.volunteerPreferences && (
+												<div>
+													<Text
+														text="Volunteer Preferences"
+														variant="muted"
+														className="text-xs mb-1"
+													/>
+													<div className="flex flex-wrap gap-1.5">
+														{memberDetails.member.volunteerPreferences.split(',').map((pref) => (
+															<Badge
+																key={pref.trim()}
+																variant="outline"
+																className="font-normal transition-colors hover:bg-primary-50">
+																{pref.trim()}
+															</Badge>
+														))}
+													</div>
+												</div>
+											)}
+										</div>
+									</div>
+								)}
 
 								{/* Attendance Statistics */}
 								<div>
@@ -793,37 +1017,73 @@ export default function UsersPage() {
 												className="text-xs"
 											/>
 											<Text
-												text={memberDetails.member.dateJoined ? formatDate(memberDetails.member.dateJoined) : '—'}
+												text={memberDetails.member.dateJoined ? formatDateOnly(memberDetails.member.dateJoined) : '—'}
 												className="text-sm"
 											/>
 										</div>
 									</div>
 								</div>
+
+								{/* Recent Attendance */}
+								{memberDetails.member.recentAttendance?.length > 0 && (
+									<div>
+										<div className="flex items-center gap-2 mb-2">
+											<CalendarCheck className="h-4 w-4 text-gray-500" />
+											<Text
+												text="Recent Attendance"
+												variant="blue"
+												className="font-medium text-sm"
+											/>
+										</div>
+										<div className="pl-6 space-y-2">
+											{memberDetails.member.recentAttendance.slice(0, 5).map((entry, idx) => (
+												<div
+													key={`${entry.date}-${idx}`}
+													className="flex items-center justify-between py-1.5 px-2 rounded-lg transition-colors hover:bg-gray-50">
+													<div>
+														<Text
+															text={entry.serviceTitle}
+															className="text-sm"
+														/>
+														<Text
+															text={formatDateOnly(entry.date)}
+															variant="muted"
+															className="text-xs"
+														/>
+													</div>
+													<span
+														className={cn(
+															'px-2 py-0.5 rounded-full text-xs font-medium',
+															entry.status === 'PRESENT' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+														)}>
+														{entry.status}
+													</span>
+												</div>
+											))}
+										</div>
+									</div>
+								)}
 							</div>
 						)
 					)}
 
-					<Separator className="my-5 mt-3" />
-
-					<DialogFooter className="flex justify-between gap-3">
+					<DrawerFooter className="flex-row justify-between gap-3 border-t px-6 py-4">
 						<Button
 							variant={!selectedUser?.isActive ? 'default' : 'destructive'}
 							onClick={() => {
-								setIsViewModalOpen(false);
+								setIsViewDrawerOpen(false);
 								setIsBlockModalOpen(true);
 							}}
-							className="gap-2">
+							className="gap-2 transition-transform hover:scale-[1.02]">
 							{!selectedUser?.isActive ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
 							{!selectedUser?.isActive ? 'Activate User' : 'Deactivate User'}
 						</Button>
-						<Button
-							variant="outline"
-							onClick={() => setIsViewModalOpen(false)}>
-							Close
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+						<DrawerClose asChild>
+							<Button variant="outline">Close</Button>
+						</DrawerClose>
+					</DrawerFooter>
+				</DrawerContent>
+			</Drawer>
 
 			{/* Block/Unblock Confirmation Dialog */}
 			<AlertDialog

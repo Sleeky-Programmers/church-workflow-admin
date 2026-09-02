@@ -163,6 +163,7 @@ export function Navbar() {
 					size="icon"
 					variant={starred ? 'starred' : 'ghost'}
 					aria-label="Star this page"
+					className="transition-transform hover:scale-110"
 					onClick={() =>
 						toggleFavorite({
 							path: pathname,
@@ -170,7 +171,7 @@ export function Navbar() {
 						})
 					}>
 					<Star
-						className="w-4 h-4"
+						className="w-4 h-4 transition-transform"
 						fill={starred ? 'currentColor' : 'none'}
 					/>
 				</Button>
@@ -231,7 +232,7 @@ export function Navbar() {
 						size="icon"
 						variant="ghost"
 						aria-label="Notifications"
-						className="relative">
+						className="relative transition-transform hover:scale-110">
 						<Bell className="w-4 h-4" />
 						{/* Optional: Add notification badge */}
 						{/* <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" /> */}
@@ -242,8 +243,8 @@ export function Navbar() {
 				<Link href={RouteConfig.dashboard.admin.profile}>
 					<Button
 						variant="ghost"
-						className="flex items-center gap-2 p-0 hover:bg-transparent">
-						<Avatar className="h-8 w-8">
+						className="flex items-center gap-2 p-0 hover:bg-transparent transition-opacity hover:opacity-80">
+						<Avatar className="h-8 w-8 ring-0 ring-primary/30 transition-all hover:ring-2">
 							<AvatarFallback className="bg-primary/10 text-primary text-xs">
 								{user?.name ? user.name.charAt(0).toUpperCase() : fallbackName.charAt(0).toUpperCase()}
 							</AvatarFallback>

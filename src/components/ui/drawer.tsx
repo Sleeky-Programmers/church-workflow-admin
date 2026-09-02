@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { X } from "lucide-react"
 import { Drawer as DrawerPrimitive } from "vaul"
 
 import { cn } from "@/lib/utils"
@@ -34,21 +35,41 @@ const DrawerOverlay = React.forwardRef<
 ))
 DrawerOverlay.displayName = DrawerPrimitive.Overlay.displayName
 
+type DrawerDirection = "top" | "bottom" | "left" | "right"
+
 const DrawerContent = React.forwardRef<
   React.ElementRef<typeof DrawerPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Content>
->(({ className, children, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof DrawerPrimitive.Content> & {
+    direction?: DrawerDirection
+  }
+>(({ className, children, direction = "bottom", ...props }, ref) => (
   <DrawerPortal>
     <DrawerOverlay />
     <DrawerPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-[10px] border bg-background",
+        "fixed z-50 flex bg-background shadow-lg",
+        direction === "bottom" &&
+          "inset-x-0 bottom-0 mt-24 h-auto max-h-[85vh] flex-col rounded-t-[10px] border",
+        direction === "top" &&
+          "inset-x-0 top-0 mb-24 h-auto max-h-[85vh] flex-col rounded-b-[10px] border",
+        direction === "right" &&
+          "inset-y-0 right-0 h-full w-full max-w-md flex-col overflow-y-auto overflow-x-hidden border-l sm:max-w-lg",
+        direction === "left" &&
+          "inset-y-0 left-0 h-full w-full max-w-md flex-col overflow-y-auto overflow-x-hidden border-r sm:max-w-lg",
         className
       )}
       {...props}
     >
-      <div className="mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted" />
+      {direction === "bottom" && (
+        <div className="mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted" />
+      )}
+      {(direction === "right" || direction === "left") && (
+        <DrawerPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-all hover:opacity-100 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
+          <X className="h-4 w-4" />
+          <span className="sr-only">Close</span>
+        </DrawerPrimitive.Close>
+      )}
       {children}
     </DrawerPrimitive.Content>
   </DrawerPortal>

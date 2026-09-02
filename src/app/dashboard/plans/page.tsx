@@ -209,7 +209,7 @@ export default function PlansPage() {
 			</div>
 
 			{/* Churches Table */}
-			<Card className="rounded-2xl">
+			<Card className="rounded-2xl transition-shadow duration-200 hover:shadow-md">
 				<CardHeader className="flex flex-row items-center justify-between pb-3">
 					<CardTitle className="text-base font-medium">All Church Plans</CardTitle>
 					<Text

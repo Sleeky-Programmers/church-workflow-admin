@@ -4,6 +4,11 @@ import { authenticatedFetch } from '@/lib/api';
 export type PlanType = 'STARTER' | 'GROWTH' | 'EXPANSION' | 'ENTERPRISE';
 export type SubscriptionStatus = 'Active' | 'Expiring soon' | 'Overdue' | 'Expired';
 
+export interface ChurchAdminContact {
+	fullName: string;
+	email: string;
+}
+
 export interface Church {
 	id: string;
 	name: string;
@@ -17,6 +22,17 @@ export interface Church {
 	blockedBy?: string;
 	blockReason?: string;
 	blockHistory?: BlockHistoryEntry[];
+	// Fields only present on the detail response (GET /church/:id)
+	alias?: string;
+	address?: string;
+	country?: string;
+	state?: string;
+	defaultCurrency?: string;
+	timeZone?: string;
+	logoUrl?: string;
+	createdAt?: string;
+	updatedAt?: string;
+	superAdmin?: ChurchAdminContact;
 }
 
 export interface BlockHistoryEntry {
@@ -83,12 +99,42 @@ export async function fetchChurches(params?: ChurchFilters): Promise<ChurchListR
 	});
 }
 
-// Get single church by ID
-export async function fetchChurchById(id: string): Promise<Church> {
-	const response = await authenticatedFetch<{ success: boolean; data: Church }>(`/church/${id}`, {
+// Raw shape returned by GET /church/:id (unwrapped Mongo document + computed fields)
+interface ChurchDetailsRaw {
+	_id: string;
+	alias?: string;
+	address?: string;
+	country?: string;
+	state?: string;
+	defaultCurrency?: string;
+	timeZone?: string;
+	logoUrl?: string;
+	createdAt?: string;
+	updatedAt?: string;
+	superAdmin?: { id?: string; fullName: string; email: string } | null;
+}
+
+// Get single church by ID — returns the detail-only fields not present on the list row
+// (list-derived fields like plan/subscriptionStatus/totalMembers are kept from the table row,
+// since the detail endpoint doesn't recompute subscriptionStatus).
+export async function fetchChurchById(id: string): Promise<Partial<Church>> {
+	const raw = await authenticatedFetch<ChurchDetailsRaw>(`/church/${id}`, {
 		method: 'GET',
 	});
-	return response.data;
+
+	return {
+		id: raw._id,
+		alias: raw.alias,
+		address: raw.address,
+		country: raw.country,
+		state: raw.state,
+		defaultCurrency: raw.defaultCurrency,
+		timeZone: raw.timeZone,
+		logoUrl: raw.logoUrl,
+		createdAt: raw.createdAt,
+		updatedAt: raw.updatedAt,
+		superAdmin: raw.superAdmin ? { fullName: raw.superAdmin.fullName, email: raw.superAdmin.email } : undefined,
+	};
 }
 
 // Block a church
@@ -113,6 +159,24 @@ export async function getChurchBlockHistory(id: string): Promise<BlockHistoryEnt
 		method: 'GET',
 	});
 	return response.data;
+}
+
+export type BillingCycle = 'MONTHLY' | 'YEARLY';
+
+export interface UpdateChurchPlanResponse {
+	plan: PlanType;
+	billingCycle: BillingCycle;
+	status: string;
+	startDate: string;
+	endDate: string;
+}
+
+// Product-admin override: sets a church's plan directly (no payment involved).
+export async function updateChurchPlan(id: string, plan: PlanType, billingCycle: BillingCycle = 'MONTHLY'): Promise<UpdateChurchPlanResponse> {
+	return authenticatedFetch<UpdateChurchPlanResponse>(`/church/${id}/plan`, {
+		method: 'PATCH',
+		body: JSON.stringify({ plan, billingCycle }),
+	});
 }
 
 export async function updateChurch(data: any, file?: File) {

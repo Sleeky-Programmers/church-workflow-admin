@@ -87,6 +87,43 @@
   display: none;
 }
 
+/* Prevent horizontal scrolling inside any Drawer (vaul), regardless of direction.
+   Flex/grid children default to a content-based min-width, which lets long
+   unbroken strings (emails, addresses, etc.) force the drawer wider than its
+   container instead of wrapping — this resets that and clips as a last resort. */
+[data-vaul-drawer] {
+  overflow-x: hidden;
+}
+
+[data-vaul-drawer] * {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+/* Themed scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--primary) / 0.5) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--primary) / 0.5);
+  border-radius: 9999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--primary) / 0.8);
+}
+
  @keyframes blob {
           0%, 100% { transform: translate(0, 0) scale(1); }
           25% { transform: translate(20px, -20px) scale(1.1); }
