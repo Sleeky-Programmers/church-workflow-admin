@@ -498,7 +498,7 @@ export default function CouponsPage() {
 			</div>
 
 			<div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
-				<Card className="rounded-2xl">
+				<Card className="rounded-2xl transition-shadow duration-200 hover:shadow-md">
 					<CardContent className="pt-6">
 						<div className="flex items-center justify-between">
 							<div>
@@ -520,7 +520,7 @@ export default function CouponsPage() {
 					</CardContent>
 				</Card>
 
-				<Card className="rounded-2xl">
+				<Card className="rounded-2xl transition-shadow duration-200 hover:shadow-md">
 					<CardContent className="pt-6">
 						<div className="flex items-center justify-between">
 							<div>
@@ -542,7 +542,7 @@ export default function CouponsPage() {
 					</CardContent>
 				</Card>
 
-				<Card className="rounded-2xl">
+				<Card className="rounded-2xl transition-shadow duration-200 hover:shadow-md">
 					<CardContent className="pt-6">
 						<div className="flex items-center justify-between">
 							<div>
@@ -564,7 +564,7 @@ export default function CouponsPage() {
 					</CardContent>
 				</Card>
 
-				<Card className="rounded-2xl">
+				<Card className="rounded-2xl transition-shadow duration-200 hover:shadow-md">
 					<CardContent className="pt-6">
 						<div className="flex items-center justify-between">
 							<div>

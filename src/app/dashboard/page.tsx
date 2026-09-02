@@ -227,7 +227,7 @@ export default function OverviewDashboard() {
 
 	// Plan Distribution Skeleton
 	const PlanDistributionSkeleton = () => (
-		<Card className="rounded-2xl">
+		<Card className="rounded-2xl transition-shadow duration-200 hover:shadow-md">
 			<CardHeader className="pb-3">
 				<div className="h-6 w-40 bg-gray-200 rounded animate-pulse" />
 			</CardHeader>
@@ -259,7 +259,7 @@ export default function OverviewDashboard() {
 
 	// Activities Skeleton
 	const ActivitiesSkeleton = () => (
-		<Card className="rounded-2xl">
+		<Card className="rounded-2xl transition-shadow duration-200 hover:shadow-md">
 			<CardHeader className="pb-3">
 				<div className="h-6 w-32 bg-gray-200 rounded animate-pulse" />
 			</CardHeader>
@@ -389,7 +389,7 @@ export default function OverviewDashboard() {
 				{distributionLoading ? (
 					<PlanDistributionSkeleton />
 				) : (
-					<Card className="rounded-2xl">
+					<Card className="rounded-2xl transition-shadow duration-200 hover:shadow-md">
 						<CardHeader className="pb-3">
 							<CardTitle className="text-base font-medium">Churches by Plan</CardTitle>
 						</CardHeader>
@@ -478,7 +478,7 @@ export default function OverviewDashboard() {
 				{activitiesLoading ? (
 					<ActivitiesSkeleton />
 				) : (
-					<Card className="rounded-2xl">
+					<Card className="rounded-2xl transition-shadow duration-200 hover:shadow-md">
 						<CardHeader className="pb-3">
 							<CardTitle className="text-base font-medium">Recent Activity</CardTitle>
 						</CardHeader>

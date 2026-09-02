@@ -313,7 +313,7 @@ export default function PaymentsPage() {
 
 	// Table Skeleton
 	const TableSkeleton = () => (
-		<Card className="rounded-2xl">
+		<Card className="rounded-2xl transition-shadow duration-200 hover:shadow-md">
 			<CardContent className="p-0">
 				<div
 					className="overflow-x-auto"
@@ -422,7 +422,7 @@ export default function PaymentsPage() {
 				</Card>
 			) : (
 				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-					<Card className="rounded-2xl">
+					<Card className="rounded-2xl transition-shadow duration-200 hover:shadow-md">
 						<CardContent className="pt-6">
 							<div className="flex items-center justify-between">
 								<div>
@@ -449,7 +449,7 @@ export default function PaymentsPage() {
 						</CardContent>
 					</Card>
 
-					<Card className="rounded-2xl">
+					<Card className="rounded-2xl transition-shadow duration-200 hover:shadow-md">
 						<CardContent className="pt-6">
 							<div className="flex items-center justify-between">
 								<div>
@@ -476,7 +476,7 @@ export default function PaymentsPage() {
 						</CardContent>
 					</Card>
 
-					<Card className="rounded-2xl">
+					<Card className="rounded-2xl transition-shadow duration-200 hover:shadow-md">
 						<CardContent className="pt-6">
 							<div className="flex items-center justify-between">
 								<div>
@@ -503,7 +503,7 @@ export default function PaymentsPage() {
 						</CardContent>
 					</Card>
 
-					<Card className="rounded-2xl">
+					<Card className="rounded-2xl transition-shadow duration-200 hover:shadow-md">
 						<CardContent className="pt-6">
 							<div className="flex items-center justify-between">
 								<div>

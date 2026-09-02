@@ -3,6 +3,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/Sidebar";
 import { Navbar } from "@/components/layout/Navbar";
 import { RecentTracker } from "@/components/layout/recent-tracker";
+import { PageTransition } from "@/components/layout/page-transition";
 import { DashboardGuard } from "@/components/auth/dashboard-guard";
 
 export const metadata: Metadata = {
@@ -24,7 +25,9 @@ export default function DashboardLayout({
 
           <SidebarInset className="min-w-0">
             <Navbar />
-            <main className="min-w-0 w-full p-3 sm:p-4 md:p-6">{children}</main>
+            <main className="min-w-0 w-full p-3 sm:p-4 md:p-6">
+              <PageTransition>{children}</PageTransition>
+            </main>
           </SidebarInset>
         </div>
       </SidebarProvider>

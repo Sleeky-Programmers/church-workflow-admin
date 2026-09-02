@@ -58,13 +58,17 @@ export function AppSidebar() {
 			<SidebarContent>
 				<SidebarHeader>
 					<div className="px-2 sm:px-4 py-2 sm:py-3">
-						<Image
-							src="/assets/logo/horizontal/main.png"
-							alt="Church Workflow"
-							width={160}
-							height={48}
-							priority
-						/>
+						<Link
+							href="/"
+							className="inline-block transition-opacity duration-200 hover:opacity-80">
+							<Image
+								src="/assets/logo/horizontal/main.png"
+								alt="Church Workflow"
+								width={160}
+								height={48}
+								priority
+							/>
+						</Link>
 					</div>
 
 					<SidebarMenu className="grid grid-cols-2 gap-2 sm:gap-3">

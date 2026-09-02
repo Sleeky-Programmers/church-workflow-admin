@@ -3,10 +3,13 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Link } from "@/components/ui/link";
+import { RouteConfig } from "@/config/routes";
+import { useAuthStore } from "@/stores/useAuthStore";
 import { StickyHeader } from "./sticky-header";
 
 export default function Header() {
   const [scrolled, setScrolled] = useState(false);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", onScroll);
@@ -40,14 +43,19 @@ export default function Header() {
             ))}
           </nav>
           <div className="flex items-center space-x-4">
-            <Link href="/auth/login">
-              <Button variant="ghost" className="hidden sm:inline-flex">
-                Log in
-              </Button>
-            </Link>
-            <Link href="/auth/signup">
-              <Button variant="default">Get Started</Button>
-            </Link>
+            {isAuthenticated ? (
+              <Link href={RouteConfig.dashboard.home}>
+                <Button variant="default" className="transition-transform hover:scale-105">
+                  Dashboard
+                </Button>
+              </Link>
+            ) : (
+              <Link href="/auth/login">
+                <Button variant="default" className="transition-transform hover:scale-105">
+                  Sign in
+                </Button>
+              </Link>
+            )}
           </div>
         </div>
       </div>
