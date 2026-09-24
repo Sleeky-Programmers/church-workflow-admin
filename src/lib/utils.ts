@@ -308,3 +308,11 @@ export function toSentenceCase(str: string): string {
 	if (!str) return '';
 	return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 }
+
+// Activity log actions come from the backend in mixed formats
+// (UPDATE_PLAN_PRICING, Subscription Created, Payment success, ...) —
+// normalize all of them to plain sentence case with no underscores.
+export function formatActivityAction(action: string): string {
+	if (!action) return '';
+	return toSentenceCase(action.replace(/_/g, ' '));
+}

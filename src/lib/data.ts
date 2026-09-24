@@ -337,19 +337,23 @@ export const AdminSidebarData = {
 			icon: Gift,
 			permissionModule: ProductAdminModule.COUPON_MANAGEMENT,
 		},
+		{
+			title: 'Plans',
+			url: '/dashboard/plans',
+			icon: CreditCard,
+		},
 	],
 	footer: [
+		{
+			title: 'Activity Log',
+			url: '/dashboard/activity-log',
+			icon: Activity,
+		},
 		{
 			title: 'Settings',
 			url: '/dashboard/settings/profile',
 			icon: Settings,
 		},
-		// Activity Log - commented out for now, can be re-added later
-		// {
-		//   title: 'Activity Log',
-		//   url: '/dashboard/activity-log',
-		//   icon: Activity,
-		// },
 		{
 			title: 'Logout',
 			url: '/auth/login',
