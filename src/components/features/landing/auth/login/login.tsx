@@ -2,6 +2,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -12,10 +13,12 @@ import Heading from '@/components/ui/typography/Heading';
 import { Span, Text } from '@/components/ui/typography/Text';
 import { RouteConfig } from '@/config/routes';
 import { googleAuth, login } from '@/lib/api';
+import { getAuthErrorMessage } from '@/lib/auth/errors';
 import { initializeAuthSession } from '@/lib/auth/session';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { LoginFormValues } from '@/types/type';
 
+import AuthAlert from '../auth-alert';
 import GoogleSignupButton from '../oauth/google-signup-button';
 
 interface LoginFormProps {
@@ -34,10 +37,11 @@ export default function LoginForm({ onForgotPassword }: LoginFormProps) {
 	});
 
 	const onSubmit = async (values: LoginFormValues) => {
+		form.clearErrors('root');
 		setIsLoading(true);
 		try {
 			const data = await login(values);
-			if (data.accessToken.length > 2 && data.refreshToken && data.refreshToken.length > 2) {
+			if (data?.accessToken && data.accessToken.length > 2 && data.refreshToken && data.refreshToken.length > 2) {
 				const profile = initializeAuthSession({
 					accessToken: data.accessToken,
 					refreshToken: data.refreshToken,
@@ -51,41 +55,36 @@ export default function LoginForm({ onForgotPassword }: LoginFormProps) {
 					email: profile.email || values.email,
 				});
 
+				toast.success('Login successful. Redirecting to your dashboard...');
 				router.push(RouteConfig.dashboard.home);
 			} else {
-				form.setError('root', {
-					type: 'manual',
-					message: 'An internal server error occurred. Please try again later.',
-				});
+				const message = 'Login failed: the server returned an incomplete response. Please try again.';
+				form.setError('root', { type: 'manual', message });
+				toast.error(message);
 			}
 		} catch (error: any) {
-			const status = error?.response?.status;
-			const message = String(error?.message || '');
+			const status = error?.response?.status ?? error?.status;
+			const rawMessage = String(error?.message || '');
 
-			if (status === 401) {
-				if (/verify/i.test(message)) {
-					if (typeof window !== 'undefined') {
-						sessionStorage.setItem('pendingVerificationEmail', values.email);
-					}
-					router.push(`${RouteConfig.auth.signUp}?verify=1&email=${encodeURIComponent(values.email)}`);
-					return;
+			if (status === 401 && /verify/i.test(rawMessage)) {
+				if (typeof window !== 'undefined') {
+					sessionStorage.setItem('pendingVerificationEmail', values.email);
 				}
-				form.setError('password', {
-					type: 'manual',
-					message: 'Invalid credentials',
-				});
-			} else {
-				form.setError('root', {
-					type: 'manual',
-					message: 'An internal server error occurred. Please try again later.',
-				});
+				toast.info('Your email is not verified yet. Please verify it to continue.');
+				router.push(`${RouteConfig.auth.signUp}?verify=1&email=${encodeURIComponent(values.email)}`);
+				return;
 			}
+
+			const message = getAuthErrorMessage(error, 'Unable to log in right now. Please try again.');
+			form.setError('root', { type: 'manual', message });
+			toast.error(message);
 		} finally {
 			setIsLoading(false);
 		}
 	};
 
 	const handleGoogleLogin = async (idToken: string) => {
+		form.clearErrors('root');
 		setIsLoading(true);
 		try {
 			const data = await googleAuth(idToken);
@@ -101,15 +100,16 @@ export default function LoginForm({ onForgotPassword }: LoginFormProps) {
 				email: profile.email || data.user?.email || '',
 			});
 
+			toast.success('Login successful. Redirecting...');
 			if (data.user?.churchId) {
 				router.push(RouteConfig.dashboard.home);
 			} else {
 				router.push(RouteConfig.onboarding);
 			}
 		} catch (error: any) {
-			form.setError('email', {
-				message: error.message || 'Google login failed',
-			});
+			const message = getAuthErrorMessage(error, 'Google login failed. Please try again.');
+			form.setError('root', { type: 'manual', message });
+			toast.error(message);
 		} finally {
 			setIsLoading(false);
 		}
@@ -124,11 +124,16 @@ export default function LoginForm({ onForgotPassword }: LoginFormProps) {
 			<Form {...form}>
 				<form
 					onSubmit={form.handleSubmit(onSubmit)}
-					className="space-y-6">
+					className="space-y-6"
+					noValidate>
+					<AuthAlert message={form.formState.errors.root?.message} />
 					<FormField
 						control={form.control}
 						name="email"
-						rules={{ required: 'Email is required' }}
+						rules={{
+							required: 'Email is required',
+							pattern: { value: /^\S+@\S+\.\S+$/, message: 'Enter a valid email address' },
+						}}
 						render={({ field }) => (
 							<FormItem>
 								<FormLabel>Email</FormLabel>
@@ -159,6 +164,7 @@ export default function LoginForm({ onForgotPassword }: LoginFormProps) {
 								</FormControl>
 								<div className="flex justify-end">
 									<Button
+										type="button"
 										variant="link"
 										onClick={onForgotPassword}>
 										Forgot password?
