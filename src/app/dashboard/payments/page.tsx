@@ -33,6 +33,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Church, fetchChurches } from '@/services/churchService';
 import { fetchPayments, fetchPaymentStats, Payment, PaymentStats, PaymentStatus, PlanType } from '@/services/paymentService';
+import { fetchPlans, formatNaira, Plan } from '@/services/planService';
 import { useSearchStore } from '@/stores/useSearchStore';
 
 const statusConfig: Record<PaymentStatus, { label: string; icon: any; class: string }> = {
@@ -43,15 +44,29 @@ const statusConfig: Record<PaymentStatus, { label: string; icon: any; class: str
 	CANCELLED: { label: 'Cancelled', icon: XCircle, class: 'bg-orange-100 text-orange-700' },
 };
 
-const planOptionsList = [
-	{ value: 'STARTER', price: 0, currency: 'NGN' },
-	{ value: 'GROWTH', price: 200000, currency: 'NGN' },
-	{ value: 'EXPANSION', price: 500000, currency: 'NGN' },
-	{ value: 'ENTERPRISE', price: 1000000, currency: 'NGN' },
-];
+const PLAN_VALUES = ['STARTER', 'GROWTH', 'EXPANSION', 'ENTERPRISE'];
 
 export default function PaymentsPage() {
 	const { toast } = useToast();
+
+	// Plan prices come from the API so they never drift from what churches pay.
+	const [plans, setPlans] = useState<Plan[]>([]);
+	useEffect(() => {
+		fetchPlans()
+			.then(setPlans)
+			.catch(() => setPlans([]));
+	}, []);
+	const planOptionsList = PLAN_VALUES.map((value) => {
+		const plan = plans.find((p) => p.type === value);
+		return {
+			value,
+			label: !plan
+				? value
+				: plan.monthlyPrice === 0
+					? `${plan.name} - Free`
+					: `${plan.name} - ${plan.contactSales ? 'from ' : ''}${formatNaira(plan.monthlyPrice)}/mo or ${formatNaira(plan.yearlyPrice)}/yr`,
+		};
+	});
 
 	// Use search store for global search state
 	const { searchQuery, setSearchQuery, clearSearch } = useSearchStore();
@@ -875,7 +890,7 @@ export default function PaymentsPage() {
 										<SelectItem
 											key={plan.value}
 											value={plan.value}>
-											{plan.value} - {formatAmount(plan.price, plan.currency)}
+											{plan.label}
 										</SelectItem>
 									))}
 								</SelectContent>

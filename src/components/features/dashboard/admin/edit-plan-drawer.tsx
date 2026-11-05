@@ -24,10 +24,12 @@ type FormState = {
 	monthlyPrice: string;
 	yearlyPrice: string;
 	memberLimit: string;
+	guestLimit: string;
 	userLimit: string;
 	branchLimit: string;
 	customRolesEnabled: boolean;
 	popular: boolean;
+	contactSales: boolean;
 	features: string;
 };
 
@@ -37,10 +39,12 @@ function toFormState(plan: Plan): FormState {
 		monthlyPrice: String(plan.monthlyPrice),
 		yearlyPrice: String(plan.yearlyPrice),
 		memberLimit: String(plan.memberLimit),
+		guestLimit: String(plan.guestLimit ?? 0),
 		userLimit: String(plan.userLimit),
 		branchLimit: String(plan.branchLimit),
 		customRolesEnabled: plan.customRolesEnabled,
 		popular: !!plan.popular,
+		contactSales: !!plan.contactSales,
 		features: plan.features.join('\n'),
 	};
 }
@@ -67,10 +71,12 @@ export function EditPlanDrawer({ plan, open, onOpenChange, onSaved }: EditPlanDr
 				monthlyPrice: Number(form.monthlyPrice),
 				yearlyPrice: Number(form.yearlyPrice),
 				memberLimit: Number(form.memberLimit),
+				guestLimit: Number(form.guestLimit),
 				userLimit: Number(form.userLimit),
 				branchLimit: Number(form.branchLimit),
 				customRolesEnabled: form.customRolesEnabled,
 				popular: form.popular,
+				contactSales: form.contactSales,
 				features: form.features
 					.split('\n')
 					.map((f) => f.trim())
@@ -138,7 +144,12 @@ export function EditPlanDrawer({ plan, open, onOpenChange, onSaved }: EditPlanDr
 							</div>
 						</div>
 
-						<div className="grid grid-cols-3 gap-4">
+						<p className="text-xs text-muted-foreground">
+							Limits: -1 means unlimited. Saving a limit change applies it to every church on this plan straight away. Price changes
+							also update live Paystack plans, so auto-renewals charge the new price.
+						</p>
+
+						<div className="grid grid-cols-2 gap-4">
 							<div className="space-y-2">
 								<Label htmlFor="memberLimit">Member limit</Label>
 								<Input
@@ -147,6 +158,17 @@ export function EditPlanDrawer({ plan, open, onOpenChange, onSaved }: EditPlanDr
 									min={-1}
 									value={form.memberLimit}
 									onChange={(e) => update({ memberLimit: e.target.value })}
+									disabled={isSaving}
+								/>
+							</div>
+							<div className="space-y-2">
+								<Label htmlFor="guestLimit">Guest limit</Label>
+								<Input
+									id="guestLimit"
+									type="number"
+									min={-1}
+									value={form.guestLimit}
+									onChange={(e) => update({ guestLimit: e.target.value })}
 									disabled={isSaving}
 								/>
 							</div>
@@ -176,6 +198,9 @@ export function EditPlanDrawer({ plan, open, onOpenChange, onSaved }: EditPlanDr
 
 						<div className="space-y-2">
 							<Label htmlFor="features">Features (one per line)</Label>
+							<p className="text-xs text-muted-foreground">
+								Member, guest, branch and user limits are added to plan cards automatically; don&apos;t repeat them here.
+							</p>
 							<Textarea
 								id="features"
 								rows={5}
@@ -191,6 +216,22 @@ export function EditPlanDrawer({ plan, open, onOpenChange, onSaved }: EditPlanDr
 								id="customRolesEnabled"
 								checked={form.customRolesEnabled}
 								onCheckedChange={(checked) => update({ customRolesEnabled: checked })}
+								disabled={isSaving}
+							/>
+						</div>
+
+						<div className="flex items-center justify-between gap-4">
+							<div>
+								<Label htmlFor="contactSales">Contact sales (not self-serve)</Label>
+								<p className="text-xs text-muted-foreground">
+									Shows &quot;From {form.monthlyPrice ? `₦${Number(form.monthlyPrice).toLocaleString()}` : 'price'} / month&quot; with a Contact us
+									button. Churches can&apos;t pay for it online; activate it from Churches.
+								</p>
+							</div>
+							<Switch
+								id="contactSales"
+								checked={form.contactSales}
+								onCheckedChange={(checked) => update({ contactSales: checked })}
 								disabled={isSaving}
 							/>
 						</div>

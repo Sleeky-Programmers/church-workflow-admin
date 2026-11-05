@@ -11,9 +11,13 @@ export interface Plan {
 	features: string[];
 	popular?: boolean;
 	memberLimit: number;
+	/** Separate cap for guests (Visitor status). -1 = unlimited. */
+	guestLimit?: number;
 	userLimit: number;
 	branchLimit: number;
 	customRolesEnabled: boolean;
+	/** Sales-led plan: "From ₦X / month" + Contact us, activated manually here. */
+	contactSales?: boolean;
 }
 
 export interface UpdatePlanPricingPayload {
@@ -22,11 +26,18 @@ export interface UpdatePlanPricingPayload {
 	yearlyPrice?: number;
 	features?: string[];
 	memberLimit?: number;
+	guestLimit?: number;
 	userLimit?: number;
 	branchLimit?: number;
 	customRolesEnabled?: boolean;
 	popular?: boolean;
+	contactSales?: boolean;
 }
+
+export const formatLimit = (value?: number) =>
+	value === undefined || value === null ? '—' : value === -1 ? 'Unlimited' : value.toLocaleString();
+
+export const formatNaira = (value: number) => `₦${value.toLocaleString()}`;
 
 // Public endpoint — no product-admin auth required, but authenticatedFetch
 // works fine here too since a logged-in admin always has a token.

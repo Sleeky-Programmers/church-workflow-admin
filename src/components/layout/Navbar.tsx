@@ -123,7 +123,7 @@ export function Navbar() {
 	};
 
 	return (
-		<header className="relative w-full flex items-center h-16 gap-2 px-3 md:px-6 border-b">
+		<header className="sticky top-0 z-40 w-full flex items-center h-16 gap-2 px-3 md:px-6 border-b bg-background">
 			{/* Expanded mobile search overlay */}
 			{mobileSearchOpen && (
 				<div className="absolute inset-0 z-10 flex items-center gap-2 px-3 bg-background sm:hidden">
