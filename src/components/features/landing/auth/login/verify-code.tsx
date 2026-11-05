@@ -1,7 +1,10 @@
 "use client";
 import * as React from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { getAuthErrorMessage } from "@/lib/auth/errors";
+import AuthAlert from "../auth-alert";
 import { Button } from "@/components/ui/button";
 import {
   InputOTP,
@@ -36,25 +39,33 @@ export default function VerifyCodeForm({
   onResend,
 }: VerifyCodeFormProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [isResending, setIsResending] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const form = useForm<VerifyCodeFormValues>({
     defaultValues: {
       code: "",
     },
   });
-  useEffect(() => {
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const startCountdown = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
     setCountdown(60);
-    const timer = setInterval(() => {
+    timerRef.current = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
-          clearInterval(timer);
+          if (timerRef.current) clearInterval(timerRef.current);
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
-    return () => clearInterval(timer);
   }, []);
+  useEffect(() => {
+    startCountdown();
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [startCountdown]);
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -63,26 +74,47 @@ export default function VerifyCodeForm({
   const handleSubmit = async ({ code }: VerifyCodeFormValues) => {
     if (code.length !== 6) return;
 
+    form.clearErrors("root");
     setIsLoading(true);
 
     try {
       const success = await onVerify(code);
-      setIsLoading(false);
 
       if (!success) {
-        form.setError("code", {
-          type: "manual",
-          message: "Invalid or expired code",
-        });
+        const message = "Invalid or expired code. Check the code or request a new one.";
+        form.setError("root", { type: "manual", message });
+        toast.error(message);
       }
+    } catch (error) {
+      const message = getAuthErrorMessage(
+        error,
+        "We couldn't verify your code. Please try again."
+      );
+      form.setError("root", { type: "manual", message });
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleResend = async () => {
-    await onResend();
-    setCountdown(90);
+    form.clearErrors("root");
+    setIsResending(true);
+    try {
+      await onResend();
+      form.reset({ code: "" });
+      startCountdown();
+      toast.success(`A new code has been sent to ${email}.`);
+    } catch (error) {
+      const message = getAuthErrorMessage(
+        error,
+        "We couldn't resend the code. Please try again."
+      );
+      form.setError("root", { type: "manual", message });
+      toast.error(message);
+    } finally {
+      setIsResending(false);
+    }
   };
 
   return (
@@ -96,6 +128,7 @@ export default function VerifyCodeForm({
       </div>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+          <AuthAlert message={form.formState.errors.root?.message} />
           <FormField
             control={form.control}
             name="code"
@@ -179,10 +212,10 @@ export default function VerifyCodeForm({
                 <Button
                   type="button"
                   onClick={handleResend}
-                  disabled={isLoading}
+                  disabled={isLoading || isResending}
                   variant="link"
                 >
-                  Resend
+                  {isResending ? "Sending..." : "Resend"}
                 </Button>
               )}
             </Text>

@@ -10,7 +10,7 @@ import { Loader } from '@/components/ui/loader';
 import Heading from '@/components/ui/typography/Heading';
 import { Text } from '@/components/ui/typography/Text';
 import { EditPlanDrawer } from '@/components/features/dashboard/admin/edit-plan-drawer';
-import { fetchPlans, Plan } from '@/services/planService';
+import { fetchPlans, formatLimit, Plan } from '@/services/planService';
 
 function formatNaira(amount: number) {
 	return new Intl.NumberFormat('en-NG', {
@@ -73,6 +73,7 @@ export default function PlansPage() {
 										<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Monthly</th>
 										<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Yearly</th>
 										<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Members</th>
+										<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Guests</th>
 										<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Users</th>
 										<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Branches</th>
 										<th className="text-left py-3 px-4 font-medium text-gray-500 text-xs uppercase">Action</th>
@@ -87,6 +88,7 @@ export default function PlansPage() {
 											<td className="py-3 px-4">{formatNaira(plan.monthlyPrice)}</td>
 											<td className="py-3 px-4">{formatNaira(plan.yearlyPrice)}</td>
 											<td className="py-3 px-4">{plan.memberLimit === -1 ? 'Unlimited' : plan.memberLimit}</td>
+											<td className="py-3 px-4">{formatLimit(plan.guestLimit)}</td>
 											<td className="py-3 px-4">{plan.userLimit === -1 ? 'Unlimited' : plan.userLimit}</td>
 											<td className="py-3 px-4">{plan.branchLimit === -1 ? 'Unlimited' : plan.branchLimit}</td>
 											<td className="py-3 px-4">

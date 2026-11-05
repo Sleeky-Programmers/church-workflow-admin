@@ -35,6 +35,7 @@ import {
     blockChurch, Church, fetchChurchById, fetchChurches, PlanType, SubscriptionStatus, unblockChurch,
     updateChurchPlan
 } from '@/services/churchService';
+import { fetchPlans, formatNaira, Plan } from '@/services/planService';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useSearchStore } from '@/stores/useSearchStore';
 
@@ -78,12 +79,23 @@ const statusBadgeClass: Record<SubscriptionStatus, string> = {
 	'Expired': 'bg-gray-100 text-gray-700',
 };
 
-const planOptions = [
-	{ id: 'STARTER', name: 'Starter', price: 'Free' },
-	{ id: 'GROWTH', name: 'Growth', price: '₦15,000/mo' },
-	{ id: 'EXPANSION', name: 'Expansion', price: '₦25,000/mo' },
-	{ id: 'ENTERPRISE', name: 'Enterprise', price: '₦35,000/mo' },
-];
+const PLAN_IDS: PlanType[] = ['STARTER', 'GROWTH', 'EXPANSION', 'ENTERPRISE'];
+
+/** Plan choices with live prices from GET /subscription/plans. */
+function toPlanOptions(plans: Plan[]) {
+	return PLAN_IDS.map((id) => {
+		const plan = plans.find((p) => p.type === id);
+		const name = plan?.name ?? id.charAt(0) + id.slice(1).toLowerCase();
+		let price = '';
+		if (plan) {
+			price =
+				plan.monthlyPrice === 0
+					? 'Free'
+					: `${plan.contactSales ? 'From ' : ''}${formatNaira(plan.monthlyPrice)}/mo · ${formatNaira(plan.yearlyPrice)}/yr`;
+		}
+		return { id, name, price, contactSales: !!plan?.contactSales };
+	});
+}
 
 type SearchType = 'church' | 'location' | 'both';
 
@@ -117,6 +129,15 @@ export default function ChurchesPage() {
 	const [blockReason, setBlockReason] = useState('');
 	const [blockNote, setBlockNote] = useState('');
 	const [selectedPlan, setSelectedPlan] = useState('');
+	const [selectedCycle, setSelectedCycle] = useState<'MONTHLY' | 'YEARLY'>('MONTHLY');
+	const [plans, setPlans] = useState<Plan[]>([]);
+	const planOptions = toPlanOptions(plans);
+
+	useEffect(() => {
+		fetchPlans()
+			.then(setPlans)
+			.catch(() => setPlans([]));
+	}, []);
 	const [churches, setChurches] = useState<Church[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [tableLoading, setTableLoading] = useState(false);
@@ -332,7 +353,9 @@ export default function ChurchesPage() {
 		const previousPlan = selectedChurch.plan;
 		setIsSubmitting(true);
 		try {
-			const result = await updateChurchPlan(selectedChurch.id, selectedPlan as PlanType);
+			// Free plan has no cycle; paid plans (incl. manual Enterprise activation) use the chosen one.
+			const cycle = selectedPlan === 'STARTER' ? 'MONTHLY' : selectedCycle;
+			const result = await updateChurchPlan(selectedChurch.id, selectedPlan as PlanType, cycle);
 
 			const updatedChurches = churches.map((c) =>
 				c.id === selectedChurch.id ? { ...c, plan: result.plan, subscriptionStatus: 'Active' as SubscriptionStatus } : c
@@ -1171,11 +1194,36 @@ export default function ChurchesPage() {
 										onClick={() => setSelectedPlan(plan.id)}>
 										<div className="font-medium text-sm">{plan.name}</div>
 										<div className="text-xs text-gray-500 mt-0.5">{plan.price}</div>
+										{plan.contactSales && <div className="text-xs text-gray-500 mt-0.5">Sales-led: activate here after agreeing terms</div>}
 										{selectedChurch?.plan === plan.id && <div className="text-xs text-primary-600 mt-1">✓ Current plan</div>}
 									</div>
 								))}
 							</div>
 						</div>
+
+						{selectedPlan && selectedPlan !== 'STARTER' && (
+							<div>
+								<Text
+									text="Billing period"
+									className="text-sm font-medium mb-2"
+								/>
+								<div className="flex gap-2">
+									{(['MONTHLY', 'YEARLY'] as const).map((cycle) => (
+										<button
+											key={cycle}
+											type="button"
+											onClick={() => setSelectedCycle(cycle)}
+											className={cn(
+												'flex-1 rounded-lg border px-3 py-2 text-sm',
+												selectedCycle === cycle ? 'border-primary-500 bg-primary-50 font-medium' : 'border-gray-200'
+											)}>
+											{cycle === 'MONTHLY' ? 'Monthly (1 month)' : 'Yearly (12 months)'}
+										</button>
+									))}
+								</div>
+								<p className="mt-1 text-xs text-gray-500">No payment is taken. The plan runs for this period from today.</p>
+							</div>
+						)}
 					</div>
 
 					<DialogFooter>

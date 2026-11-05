@@ -1,6 +1,9 @@
 "use client";
 import * as React from "react";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { getAuthErrorMessage } from "@/lib/auth/errors";
+import AuthAlert from "../auth-alert";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -38,19 +41,23 @@ export default function ResetPasswordForm({
   });
   const onSubmit = async (data: ResetPasswordFormValues) => {
     if (data.newPassword !== data.confirmPassword) return;
+    form.clearErrors("root");
     setIsLoading(true);
     try {
-      resetPassword({
+      await resetPassword({
         newPassword: data.newPassword,
         confirmNewPassword: data.confirmPassword,
       });
 
+      toast.success("Password reset successful. Please log in with your new password.");
       onSuccess();
-    } catch (error: any) {
-      form.setError("newPassword", {
-        type: "manual",
-        message: error.message || "Failed to reset password",
-      });
+    } catch (error) {
+      const message = getAuthErrorMessage(
+        error,
+        "Failed to reset password. Please try again."
+      );
+      form.setError("root", { type: "manual", message });
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }
@@ -66,6 +73,7 @@ export default function ResetPasswordForm({
       </div>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <AuthAlert message={form.formState.errors.root?.message} />
           <FormField
             control={form.control}
             name="newPassword"

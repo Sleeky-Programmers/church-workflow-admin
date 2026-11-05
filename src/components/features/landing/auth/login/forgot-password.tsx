@@ -1,5 +1,8 @@
 "use client";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { getAuthErrorMessage } from "@/lib/auth/errors";
+import AuthAlert from "../auth-alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Heading from "@/components/ui/typography/Heading";
@@ -16,7 +19,7 @@ import { Loader } from "@/components/ui/loader";
 import React from "react";
 
 interface ForgotPasswordFormProps {
-  onSubmit: (email: string) => void;
+  onSubmit: (email: string) => Promise<void>;
   onBackToLogin: () => void;
 }
 
@@ -35,11 +38,20 @@ export default function ForgotPasswordForm({
     },
   });
   const handleSubmit = async (data: ForgotPasswordFormValues) => {
+    form.clearErrors("root");
     setIsLoading(true);
-    setTimeout(() => {
+    try {
+      await onSubmit(data.email);
+    } catch (error) {
+      const message = getAuthErrorMessage(
+        error,
+        "We couldn't send the reset code. Please try again."
+      );
+      form.setError("root", { type: "manual", message });
+      toast.error(message);
+    } finally {
       setIsLoading(false);
-      onSubmit(data.email);
-    }, 1000);
+    }
   };
 
   return (
@@ -51,12 +63,21 @@ export default function ForgotPasswordForm({
         </Text>
       </div>
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+        <form
+          onSubmit={form.handleSubmit(handleSubmit)}
+          className="space-y-6"
+          noValidate
+        >
+          <AuthAlert message={form.formState.errors.root?.message} />
           <FormField
             control={form.control}
             name="email"
             rules={{
               required: "Email is required",
+              pattern: {
+                value: /^\S+@\S+\.\S+$/,
+                message: "Enter a valid email address",
+              },
             }}
             render={({ field }) => (
               <FormItem>

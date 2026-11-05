@@ -9,15 +9,13 @@ import { AnimatePresence, motion } from "framer-motion";
 import AuthLayout from "@/components/features/landing/auth/signup/auth-layout";
 import { AuthVariant } from "@/lib/auth-content";
 import { requestOtp, verifyOtp } from "@/lib/api";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 type AuthStep = "login" | "forgot-password" | "verify-code" | "reset-password";
 
 export default function LoginPage() {
   const [step, setStep] = useState<AuthStep>("login");
   const [email, setEmail] = useState("");
-
-  const { toast } = useToast();
 
   const getVariant = (): AuthVariant => {
     switch (step) {
@@ -34,30 +32,28 @@ export default function LoginPage() {
     }
   };
 
+  // Errors are thrown so the form that triggered the call can show them inline.
   const handleForgotPassword = async (email: string) => {
-    try {
-      await requestOtp(email);
-      setEmail(email);
-      setStep("verify-code");
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "An error occurred while requesting OTP",
-        variant: "destructive",
-      });
-    }
+    await requestOtp(email);
+    setEmail(email);
+    toast.success(`A verification code has been sent to ${email}.`);
+    setStep("verify-code");
   };
 
   const handleVerifyOtp = async (code: string) => {
     try {
-      const data = await verifyOtp({ email, otp: parseInt(code) });
+      const data = await verifyOtp({ email, otp: parseInt(code, 10) });
       localStorage.setItem("accessToken", data.accessToken);
 
+      toast.success("Code verified. Set your new password.");
       setStep("reset-password");
 
       return true;
-    } catch {
-      return false;
+    } catch (error: any) {
+      // A rejected code is a normal outcome; anything else (network, 5xx) is surfaced as-is.
+      const status = error?.status ?? error?.response?.status;
+      if (status === 400 || status === 401 || status === 404) return false;
+      throw error;
     }
   };
 
